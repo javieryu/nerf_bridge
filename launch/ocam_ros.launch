@@ -1,0 +1,13 @@
+<!-- ... -->
+<launch>
+  <node pkg="ocam" type="ocam" name="ocam" output="screen">
+    <param name="resolution"    value="0"/> <!-- 0: 1280x960, 1: 1280x720, 2: 640x480, 3: 640x360 -->
+    <param name="frame_rate"    value="30"/>
+    <param name="exposure"      value="160"/>
+    <param name="gain"          value="128"/>
+    <param name="wb_blue"       value="200"/>
+    <param name="wb_red"        value="140"/>
+    <param name="auto_exposure" value="false"/>
+    <param name="show_image"    value="true"/>
+  </node>
+</launch>
