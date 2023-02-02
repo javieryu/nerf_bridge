@@ -23,39 +23,33 @@ from typing import Dict
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import (
-    Config,
-    SchedulerConfig,
-    TrainerConfig,
-    ViewerConfig,
-)
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
+from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
-method_configs: Dict[str, Config] = {}
+from nsros.ros_datamanager import ROSDataManagerConfig
+from nsros.ros_dataparser import ROSDataParserConfig
+from nsros.ros_trainer import ROSTrainerConfig
+
+method_configs: Dict[str, ROSTrainerConfig] = {}
 descriptions = {
-    "rosnerfacto": "ROS Streaming to nerfacto.",
+    "nsros": "Recommended real-time model tuned for real captures. This model will be continually updated.",
 }
 
-method_configs["rosnerfacto"] = Config(
-    method_name="nerfacto",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500,
-        steps_per_save=2000,
-        max_num_iterations=30000,
-        mixed_precision=True,
-    ),
+method_configs["nsros"] = ROSTrainerConfig(
+    method_name="nsros",
+    steps_per_eval_batch=500,
+    steps_per_save=30000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
+        datamanager=ROSDataManagerConfig(
+            dataparser=ROSDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -74,13 +68,12 @@ method_configs["rosnerfacto"] = Config(
     vis="viewer",
 )
 
-AnnotatedBaseConfigUnion = (
-    tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-        tyro.extras.subcommand_type_from_defaults(
-            defaults=method_configs, descriptions=descriptions
-        )
+
+AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    tyro.conf.FlagConversionOff[
+        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
     ]
-)
+]
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""
