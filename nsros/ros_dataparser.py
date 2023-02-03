@@ -29,7 +29,7 @@ class ROSDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     max_keyframes: int = 300
     """ maximum number of nerf keyframes."""
-    update_freq: float = 3.0
+    update_freq: float = 5.0
     """ Frequency in Hz that images are added to the dataset """
     aabb_scale: float = 2.0
     """ SceneBox aabb scale."""

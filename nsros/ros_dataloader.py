@@ -179,6 +179,7 @@ class ROSDataloader(DataLoader):
 
             self.updated = True
             self.current_idx += 1
+            self.last_update_t = now
 
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)
