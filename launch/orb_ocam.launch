@@ -2,8 +2,8 @@
   <node pkg="ocam" type="ocam" name="ocam" output="screen">
     <param name="resolution"    value="0"/> <!-- 0: 1280x960, 1: 1280x720, 2: 640x480, 3: 640x360 -->
     <param name="frame_rate"    value="30"/>
-    <param name="exposure"      value="160"/>
-    <param name="gain"          value="128"/>
+    <param name="exposure"      value="90"/>
+    <param name="gain"          value="80"/>
     <param name="wb_blue"       value="200"/>
     <param name="wb_red"        value="140"/>
     <param name="auto_exposure" value="false"/>
@@ -46,10 +46,10 @@
       <!--If the node should wait for a camera_info topic to take the camera calibration data-->
       <param name="load_calibration_from_cam" type="bool" value="false" />
       <!-- Camera calibration and distortion parameters (OpenCV) -->
-      <param name="camera_fx" type="double" value="973.3" />
-      <param name="camera_fy" type="double" value="974.5" />
-      <param name="camera_cx" type="double" value="644.6" />
-      <param name="camera_cy" type="double" value="370.4" />
+      <param name="camera_fx" type="double" value="964.5" />
+      <param name="camera_fy" type="double" value="962.8" />
+      <param name="camera_cx" type="double" value="651.3" />
+      <param name="camera_cy" type="double" value="361.4" />
        <!-- Camera calibration and distortion parameters (OpenCV) -->
       <param name="camera_k1" type="double" value="-0.4" />
       <param name="camera_k2" type="double" value="0.15" />

@@ -110,7 +110,7 @@ class ROSTrainer(Trainer):
                 image = self.dataset[idx]["image"]
                 bgr = image[..., [2, 1, 0]]
                 camera_json = self.dataset.cameras.to_json(
-                    camera_idx=idx, image=bgr, max_size=20)
+                    camera_idx=idx, image=bgr, max_size=10)
 
                 self.viewer_state.vis[f"sceneState/cameras/{idx:06d}"].write(
                     camera_json
