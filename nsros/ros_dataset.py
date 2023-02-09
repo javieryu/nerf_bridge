@@ -1,8 +1,4 @@
-"""
-Depth dataset.
-"""
-
-from typing import Dict, Union
+from typing import Union
 
 import torch
 
@@ -16,11 +12,11 @@ class ROSDataset(InputDataset):
     It's main purpose is to conform to the already defined workflow of nerfstudio:
         (dataparser -> inputdataset -> dataloader).
 
-    In reality we could just use a rosdataloader, but this would require rewritting
-    more code than its worth.
+    In reality we could just store everything directly in ROSDataloader, but this
+    would require rewritting more code than its worth.
 
     Images are tracked in self.image_tensor with uninitialized images set to
-    all black (hence torch.ones).
+    all white (hence torch.ones).
     Poses are stored in self.cameras.camera_to_worlds as 3x4 transformation tensors.
 
     Args:
@@ -38,13 +34,12 @@ class ROSDataset(InputDataset):
         assert (
             "image_topic" in dataparser_outputs.metadata.keys()
             and "pose_topic" in dataparser_outputs.metadata.keys()
-            and "num_kfs" in dataparser_outputs.metadata.keys()
+            and "num_images" in dataparser_outputs.metadata.keys()
         )
         self.image_topic_name = self.metadata["image_topic"]
         self.pose_topic_name = self.metadata["pose_topic"]
-        self.max_num_kf = self.metadata["num_kfs"]
-        assert self.max_num_kf > 0
-        self.update_freq = self.metadata["update_freq"]
+        self.num_images = self.metadata["num_images"]
+        assert self.num_images > 0
         self.image_height = self.metadata["image_height"]
         self.image_width = self.metadata["image_width"]
         self.device = device
@@ -52,14 +47,14 @@ class ROSDataset(InputDataset):
         self.cameras = self.cameras.to(device=self.device)
 
         self.image_tensor = torch.ones(
-            self.max_num_kf, self.image_height, self.image_width, 3, dtype=torch.float32
+            self.num_images, self.image_height, self.image_width, 3, dtype=torch.float32
         )
-        self.image_indices = torch.arange(self.max_num_kf)
+        self.image_indices = torch.arange(self.num_images)
 
         self.updated_indices = []
 
     def __len__(self):
-        return self.max_num_kf
+        return self.num_images
 
     def __getitem__(self, idx: int):
         """

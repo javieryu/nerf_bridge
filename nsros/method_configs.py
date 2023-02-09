@@ -1,19 +1,8 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Code slightly adapted from Nerfstudio
+# https://github.com/nerfstudio-project/nerfstudio/blob/df784e96e7979aaa4320284c087d7036dce67c28/nerfstudio/configs/method_configs.py
 
 """
-Put all the method implementations in one location.
+Method configurations
 """
 
 from __future__ import annotations
@@ -34,11 +23,11 @@ from nsros.ros_trainer import ROSTrainerConfig
 
 method_configs: Dict[str, ROSTrainerConfig] = {}
 descriptions = {
-    "nsros": "Recommended real-time model tuned for real captures. This model will be continually updated.",
+    "ros_nerfacto": "Run the nerfstudio nerfacto method on data streamed from ROS.",
 }
 
-method_configs["nsros"] = ROSTrainerConfig(
-    method_name="nsros",
+method_configs["ros_nerfacto"] = ROSTrainerConfig(
+    method_name="ros_nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=30000,
     max_num_iterations=30000,
@@ -49,7 +38,8 @@ method_configs["nsros"] = ROSTrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -64,16 +54,20 @@ method_configs["nsros"] = ROSTrainerConfig(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    viewer=ViewerConfig(num_rays_per_chunk=20000),
     vis="viewer",
 )
 
 
-AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    tyro.conf.FlagConversionOff[
-        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+AnnotatedBaseConfigUnion = (
+    tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+        tyro.conf.FlagConversionOff[
+            tyro.extras.subcommand_type_from_defaults(
+                defaults=method_configs, descriptions=descriptions
+            )
+        ]
     ]
-]
+)
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

@@ -1,5 +1,5 @@
 """
-Depth datamanager.
+A datamanager for the NSROS Bridge.
 """
 
 from dataclasses import dataclass, field
@@ -15,9 +15,6 @@ from nsros.ros_dataset import ROSDataset
 from nsros.ros_dataloader import ROSDataloader
 from nsros.ros_dataparser import ROSDataParserConfig
 
-import pdb
-import torch
-
 
 CONSOLE = Console(width=120)
 
@@ -29,12 +26,21 @@ class ROSDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: ROSDataManager)
     dataparser: ROSDataParserConfig = ROSDataParserConfig()
     """ Must use only the ROSDataParser here """
+    publish_training_posearray: bool = True
+    """ Whether the dataloader should publish an pose array of the training image poses. """
+    data_update_freq: float = 5.0
+    """ Frequency, in Hz, that images are added to the training dataset tensor. """
+    num_training_images: int = 500
+    """ Number of images to train on (for dataset tensor pre-allocation). """
 
 
 class ROSDataManager(
     base_datamanager.VanillaDataManager
 ):  # pylint: disable=abstract-method
-    """Data manager implementation for data that also requires processing depth data.
+    """Essentially the VannilaDataManager from Nerfstudio except that the
+    typical dataloader for training images is replaced with one that streams
+    image and pose data from ROS.
+
     Args:
         config: the DataManagerConfig used to instantiate class
     """
@@ -44,7 +50,7 @@ class ROSDataManager(
 
     def create_train_dataset(self) -> ROSDataset:
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
-            split="train"
+            split="train", num_images=self.config.num_training_images
         )
         return ROSDataset(
             dataparser_outputs=self.train_dataparser_outputs, device=self.device
@@ -52,12 +58,10 @@ class ROSDataManager(
 
     def setup_train(self):
         assert self.train_dataset is not None
-        # Setup custom dataloader for ROS, and print rostopic statuses
-        # Everything else should be the same.
-        self.images_to_start = self.train_dataset.metadata["images_to_start"]
-
         self.train_image_dataloader = ROSDataloader(
             self.train_dataset,
+            self.config.publish_training_posearray,
+            self.config.data_update_freq,
             device=self.device,
             num_workers=0,
             pin_memory=True,
@@ -90,13 +94,15 @@ class ROSDataManager(
 
     def setup_eval(self):
         """
-        Evaluation data is not implemented!
+        Evaluation data is not implemented! This function is called by
+        the parent class, but the results are never used.
         """
         pass
 
     def create_eval_dataset(self):
         """
-        Evaluation data is not implemented!
+        Evaluation data is not implemented! This function is called by
+        the parent class, but the results are never used.
         """
         pass
 
@@ -106,20 +112,9 @@ class ROSDataManager(
         raise NameError(
             "Evaluation funcationality not yet implemented with ROS Streaming."
         )
-        # self.eval_count += 1
-        # image_batch = next(self.iter_eval_image_dataloader)
-        # assert self.eval_pixel_sampler is not None
-        # batch = self.eval_pixel_sampler.sample(image_batch)
-        # ray_indices = batch["indices"]
-        # ray_bundle = self.eval_ray_generator(ray_indices)
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
         CONSOLE.print("Evaluation data is not setup!")
         raise NameError(
             "Evaluation funcationality not yet implemented with ROS Streaming."
         )
-        # for camera_ray_bundle, batch in self.eval_dataloader:
-        #     assert camera_ray_bundle.camera_indices is not None
-        #     image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
-        #     return image_idx, camera_ray_bundle, batch
-        # raise ValueError("No more eval images")

@@ -19,24 +19,20 @@ from nerfstudio.utils.io import load_from_json
 
 @dataclass
 class ROSDataParserConfig(DataParserConfig):
-    """ROS dataset parser config"""
+    """ROS config file parser config."""
 
-    _target: Type = field(default_factory=lambda: ROS)
+    _target: Type = field(default_factory=lambda: ROSDataParser)
     """target class to instantiate"""
     data: Path = Path("data/ros/nsros_config.json")
     """ Path to configuration JSON. """
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    num_training_images: int = 500
-    """ Number of images to train on (for dataset tensor pre-allocation). """
-    update_freq: float = 2.0
-    """ Frequency in Hz that images are added to the dataset. """
     aabb_scale: float = 2.0
     """ SceneBox aabb scale."""
 
 
 @dataclass
-class ROS(DataParser):
+class ROSDataParser(DataParser):
     """ROS DataParser"""
 
     config: ROSDataParserConfig
@@ -45,12 +41,27 @@ class ROS(DataParser):
         super().__init__(config=config)
         self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
-        self.num_kfs: int = config.num_training_images
-        self.update_freq = config.update_freq
         self.aabb = config.aabb_scale
 
-    def _generate_dataparser_outputs(self, split="train"):
-        meta = load_from_json(self.data / f"nerfstudio_config.json")
+    def get_dataparser_outputs(self, split="train", num_images: int = 500):
+        dataparser_outputs = self._generate_dataparser_outputs(split, num_images)
+        return dataparser_outputs
+
+    def _generate_dataparser_outputs(self, split="train", num_images: int = 500):
+        """
+        This function generates a DataParserOutputs object. Typically in Nerfstudio
+        this is used to populate the training and evaluation datasets, but since with
+        NSROS Bridge our aim is to stream the data then we only have to worry about
+        loading the proper camera parameters and ROS topic names.
+
+        Args:
+            split: Determines the data split (not used, but left in place for consistency
+                with Nerfstudio)
+
+            num_images: The size limit of the training image dataset. This is used to
+                pre-allocate tensors for the Cameras object that tracks camera pose.
+        """
+        meta = load_from_json(self.data)
 
         image_height = meta["H"]
         image_width = meta["W"]
@@ -67,9 +78,9 @@ class ROS(DataParser):
         p2 = meta["p2"] if "p2" in meta else 0.0
         distort = torch.tensor([k1, k2, k3, k4, p1, p2], dtype=torch.float32)
 
-        camera_to_world = torch.stack(
-            self.num_kfs * [torch.eye(4, dtype=torch.float32)]
-        )[:, :-1, :]
+        camera_to_world = torch.stack(num_images * [torch.eye(4, dtype=torch.float32)])[
+            :, :-1, :
+        ]
 
         # in x,y,z order
         scene_size = self.aabb
@@ -101,10 +112,9 @@ class ROS(DataParser):
         metadata = {
             "image_topic": meta["image_topic"],
             "pose_topic": meta["pose_topic"],
-            "num_kfs": self.num_kfs,
-            "update_freq": self.update_freq,
+            "num_images": num_images,
             "image_height": image_height,
-            "image_width": image_width
+            "image_width": image_width,
         }
 
         dataparser_outputs = DataparserOutputs(

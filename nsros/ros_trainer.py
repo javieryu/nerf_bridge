@@ -3,15 +3,13 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from typing import Type
-
-from rich.console import Console
 from typing_extensions import Literal
 
-from nerfstudio.utils.decorators import (
-    check_viewer_enabled,
-)
+from rich.console import Console
+
+from nerfstudio.utils.decorators import check_viewer_enabled
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
-import time
+
 from nsros.ros_dataset import ROSDataset
 
 CONSOLE = Console(width=120)

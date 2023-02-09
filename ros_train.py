@@ -1,11 +1,22 @@
 #!/usr/bin/env python
-"""Train a radiance field with nerfstudio using data streamed from ROS!
+# Code adapted from Nerfstudio
+# https://github.com/nerfstudio-project/nerfstudio/blob/df784e96e7979aaa4320284c087d7036dce67c28/scripts/train.py
+
+"""
+Train a radiance field with nerfstudio using data streamed from ROS!
+
+This is a stripped back version of the nerfstudio train.py script without
+all of the distributed training code that is not support by the NSROS Bridge.
+
+All of the tyro help functionality should still work, but instead of a CLI
+just call this script directly:
+    python ros_train.py ros_nerfacto --data /path/to/config.json [OPTIONS]
 """
 
-
+import signal
+import sys
 import random
 import traceback
-from typing import Callable, Optional
 
 import numpy as np
 import torch
@@ -18,18 +29,14 @@ from nerfstudio.utils import profiler
 from nsros.method_configs import AnnotatedBaseConfigUnion
 from nsros.ros_trainer import ROSTrainerConfig
 
-import pdb
-import rospy
-
 CONSOLE = Console(width=120)
 
 # speedup for when input size to model doesn't change (much)
 torch.backends.cudnn.benchmark = True  # type: ignore
 
-import signal
-import sys
 
 def sigint_handler(signal, frame):
+    """Capture keyboard interrupts before they get caught by ROS."""
     CONSOLE.print(traceback.format_exc())
     sys.exit(0)
 
@@ -41,35 +48,30 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def train_loop(config: ROSTrainerConfig):
-    """Main training function that sets up and runs the trainer per process
-
-    Args:
-        config: config file specifying training regimen
-    """
-    _set_random_seed(config.machine.seed)
-    trainer = config.setup(local_rank=0, world_size=1)
-    trainer.setup()
-    trainer.train()
-
 def main(config: ROSTrainerConfig) -> None:
     """Main function."""
 
     config.set_timestamp()
     if config.data:
-        CONSOLE.log("Using --data alias for --data.pipeline.datamanager.dataparser.data")
+        CONSOLE.log(
+            "Using --data alias for --data.pipeline.datamanager.dataparser.data"
+        )
         config.pipeline.datamanager.dataparser.data = config.data
 
     # print and save config
     config.print_to_terminal()
     config.save_config()
     try:
-        train_loop(config)
+        _set_random_seed(config.machine.seed)
+        trainer = config.setup(local_rank=0, world_size=1)
+        trainer.setup()
+        trainer.train()
     except KeyboardInterrupt:
         # print the stack trace
         CONSOLE.print(traceback.format_exc())
     finally:
         profiler.flush_profiler(config.logging)
+
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
@@ -81,6 +83,7 @@ def entrypoint():
             description=convert_markup_to_ansi(__doc__),
         )
     )
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, sigint_handler)

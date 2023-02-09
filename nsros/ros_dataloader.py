@@ -1,16 +1,5 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Code adapted from Nerfstudio
+# https://github.com/nerfstudio-project/nerfstudio/blob/df784e96e7979aaa4320284c087d7036dce67c28/nerfstudio/data/utils/dataloaders.py
 
 """
 Defines the ROSDataloader object that subscribes to pose and images topics,
@@ -19,8 +8,9 @@ Image and pose pairs are added at a prescribed frequency and intermediary images
 are discarded (could be used for evaluation down the line).
 """
 import time
+import warnings
 from typing import Union
-import sys
+
 import numpy as np
 import scipy.spatial.transform as transform
 from rich.console import Console
@@ -34,13 +24,15 @@ from nsros.ros_dataset import ROSDataset
 
 import rospy
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseArray
 from message_filters import TimeSynchronizer, Subscriber
-
-import pdb
 
 
 CONSOLE = Console(width=120)
+
+# Suppress a warning from torch.tensorbuffer about copying that
+# does not apply in this case.
+warnings.filterwarnings("ignore", "The given buffer")
 
 
 def ros_pose_to_nerfstudio(pose: PoseStamped, static_transform=None):
@@ -68,15 +60,20 @@ def ros_pose_to_nerfstudio(pose: PoseStamped, static_transform=None):
 
 class ROSDataloader(DataLoader):
     """
-    Collated image dataset that implements caching of default-pytorch-collatable data.
-    Creates batches of the dataset return type. In this case of nerfstudio this means that we are
-    returning batches of full images, which then are sampled using a PixelSampler.
+    Creates batches of the dataset return type. In this case of nerfstudio this means
+    that we are returning batches of full images, which then are sampled using a
+    PixelSampler. For this class the image batches are progressively growing as
+    more images are recieved from ROS, and stored in a pytorch tensor.
 
     Args:
         dataset: Dataset to sample from.
-        num_images_to_start: How many images to sample rays for each batch.
-        num_images_to_add: How often to collate new images.
-        full_dataset: Ignore other settings and return the entire dataset.
+        publish_posearray: publish a PoseArray to a ROS topic that tracks the poses of the
+            images that have been added to the training set.
+        data_update_freq: Frequency (wall clock) that images are added to the training
+            data tensors. If this value is less than the frequency of the topics to which
+            this dataloader subscribes (pose and images) then this subsamples the ROS data.
+            Otherwise, if the value is larger than the ROS topic rates then every pair of
+            messages is added to the training bag.
         device: Device to perform computation.
     """
 
@@ -85,6 +82,8 @@ class ROSDataloader(DataLoader):
     def __init__(
         self,
         dataset: ROSDataset,
+        publish_posearray: bool,
+        data_update_freq: float,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
@@ -101,8 +100,10 @@ class ROSDataloader(DataLoader):
         # Tracking ros updates
         self.current_idx = 0
         self.updated = True
-        self.update_period = 1 / self.dataset.update_freq
+        self.update_period = 1 / data_update_freq
         self.last_update_t = time.perf_counter()
+        self.publish_posearray = publish_posearray
+        self.poselist = []
 
         self.coord_st = torch.zeros(3, 4)
         R1 = transform.Rotation.from_euler("y", -90, degrees=True).as_matrix()
@@ -112,23 +113,20 @@ class ROSDataloader(DataLoader):
 
         # Keep it in the format so that it makes it look more like a
         # regular data loader.
-        self.collated_data = {
+        self.data_dict = {
             "image": self.dataset.image_tensor,
             "image_idx": self.dataset.image_indices,
         }
 
         super().__init__(dataset=dataset, **kwargs)
 
-        rospy.init_node("nerfstudiolistener", anonymous=True)
+        # All of the ROS CODE
+        rospy.init_node("nsros_dataloader", anonymous=True)
         self.image_sub = Subscriber(self.dataset.image_topic_name, Image)
         self.pose_sub = Subscriber(self.dataset.pose_topic_name, PoseStamped)
         self.ts = TimeSynchronizer([self.image_sub, self.pose_sub], 10)
         self.ts.registerCallback(self.ts_image_pose_callback)
-
-        # Subscribe to both topics and match messages if they have
-        # appropriately close times in the header. Time "slop" is
-        # controlled by data_dt_thresh (which is in seconds).
-        # CONSOLE.print("here")
+        self.posearray_pub = rospy.Publisher("training_poses", PoseArray, queue_size=1)
 
     def msg_status(self, num_to_start):
         """
@@ -139,17 +137,9 @@ class ROSDataloader(DataLoader):
 
     def ts_image_pose_callback(self, image: Image, pose: PoseStamped):
         """
-        Check if its time to update the tensors
-        Convert Image ROS message to Tensor.
-        Convert Pose to appropriate orientation.
-        Write image to self.images
-        Write pose to dataset.cameras.camera_to_world
-        increment current index
-        change update status
-
-        Increment and set update status at the end so that to avoid accidentally
-        reading out of a section of images tensor that hasn't been written to yet.
-        We'll see if this is an issue.
+        The callback triggered when time synchronized image and pose messages
+        are published on the topics specifed in the config JSON passed to
+        the ROSDataParser.
         """
         now = time.perf_counter()
         if (
@@ -175,6 +165,12 @@ class ROSDataloader(DataLoader):
             c2w = c2w.to(device)
             self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w
 
+            if self.publish_posearray:
+                self.poselist.append(pose.pose)
+                pa = PoseArray(poses=self.poselist)
+                pa.header.frame_id = "map"
+                self.posearray_pub.publish(pa)
+
             self.dataset.updated_indices.append(self.current_idx)
 
             self.updated = True
@@ -184,18 +180,18 @@ class ROSDataloader(DataLoader):
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)
 
-    def _get_collated_subset(self):
-        collated_batch = {}
-        for k, v in self.collated_data.items():
+    def _get_updated_batch(self):
+        batch = {}
+        for k, v in self.data_dict.items():
             if isinstance(v, torch.Tensor):
-                collated_batch[k] = v[: self.current_idx, ...]
-        return collated_batch
+                batch[k] = v[: self.current_idx, ...]
+        return batch
 
     def __iter__(self):
         while True:
             if self.updated:
-                self.collated_batch = self._get_collated_subset()
+                self.batch = self._get_updated_batch()
                 self.updated = False
 
-            collated_batch = self.collated_batch
-            yield collated_batch
+            batch = self.batch
+            yield batch
