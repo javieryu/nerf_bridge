@@ -10,20 +10,9 @@ from typing_extensions import Literal
 from nerfstudio.utils.decorators import (
     check_viewer_enabled,
 )
-from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.misc import step_check
-from nerfstudio.engine.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
-from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
 import time
-from copy import copy
 from nsros.ros_dataset import ROSDataset
-import rospy
-import pdb
 
 CONSOLE = Console(width=120)
 
@@ -32,8 +21,11 @@ CONSOLE = Console(width=120)
 class ROSTrainerConfig(TrainerConfig):
     _target: Type = field(default_factory=lambda: ROSTrainer)
     msg_timeout: float = 60.0
-    """ How long to wait before the first image-pose pair is published (seconds). """
+    """ How long to wait (seconds) for sufficient images to be received before training. """
     num_msgs_to_start: int = 3
+    """ Number of images that must be recieved before training can start. """
+    draw_training_images: bool = False
+    """ Whether or not to draw the training images in the viewer. """
 
 
 class ROSTrainer(Trainer):
@@ -66,7 +58,7 @@ class ROSTrainer(Trainer):
             f"[bold green] (NSROS) Waiting for for image streaming to begin ...."
         )
         while time.perf_counter() - start < self.msg_timeout:
-            if self.pipeline.datamanager.train_image_dataloader.msg_status(
+            if self.pipeline.datamanager.train_image_dataloader.msg_status(  # pyright: ignore
                 self.num_msgs_to_start
             ):
                 status = True
@@ -100,19 +92,21 @@ class ROSTrainer(Trainer):
             self.viewer_state.vis["sceneState/cameras"].delete()
             self.first_update = False
 
-        # Draw any new training images
-        image_indices = self.dataset.updated_indices
-        for idx in image_indices:
-            if not idx in self.cameras_drawn:
-                # Do a copy here just to make sure we aren't
-                # changing the training data downstream.
-                # TODO: Verify if we need to do this
-                image = self.dataset[idx]["image"]
-                bgr = image[..., [2, 1, 0]]
-                camera_json = self.dataset.cameras.to_json(
-                    camera_idx=idx, image=bgr, max_size=10)
+        if self.config.draw_training_images:
+            # Draw any new training images
+            image_indices = self.dataset.updated_indices
+            for idx in image_indices:
+                if not idx in self.cameras_drawn:
+                    # Do a copy here just to make sure we aren't
+                    # changing the training data downstream.
+                    # TODO: Verify if we need to do this
+                    image = self.dataset[idx]["image"]
+                    bgr = image[..., [2, 1, 0]]
+                    camera_json = self.dataset.cameras.to_json(
+                        camera_idx=idx, image=bgr, max_size=10
+                    )
 
-                self.viewer_state.vis[f"sceneState/cameras/{idx:06d}"].write(
-                    camera_json
-                )
-                self.cameras_drawn.append(idx)
+                    self.viewer_state.vis[f"sceneState/cameras/{idx:06d}"].write(
+                        camera_json
+                    )
+                    self.cameras_drawn.append(idx)

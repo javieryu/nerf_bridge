@@ -23,14 +23,14 @@ class ROSDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: ROS)
     """target class to instantiate"""
-    data: Path = Path("data/ros/home")
-    """Directory specifying location of data."""
+    data: Path = Path("data/ros/nsros_config.json")
+    """ Path to configuration JSON. """
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    max_keyframes: int = 300
-    """ maximum number of nerf keyframes."""
+    num_training_images: int = 500
+    """ Number of images to train on (for dataset tensor pre-allocation). """
     update_freq: float = 2.0
-    """ Frequency in Hz that images are added to the dataset """
+    """ Frequency in Hz that images are added to the dataset. """
     aabb_scale: float = 2.0
     """ SceneBox aabb scale."""
 
@@ -45,7 +45,7 @@ class ROS(DataParser):
         super().__init__(config=config)
         self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
-        self.num_kfs: int = config.max_keyframes
+        self.num_kfs: int = config.num_training_images
         self.update_freq = config.update_freq
         self.aabb = config.aabb_scale
 

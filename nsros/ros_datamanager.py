@@ -24,10 +24,11 @@ CONSOLE = Console(width=120)
 
 @dataclass
 class ROSDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
-    """A depth datamanager - required to use with .setup()"""
+    """A ROS datamanager that handles a streaming dataloader."""
 
     _target: Type = field(default_factory=lambda: ROSDataManager)
     dataparser: ROSDataParserConfig = ROSDataParserConfig()
+    """ Must use only the ROSDataParser here """
 
 
 class ROSDataManager(
@@ -53,6 +54,7 @@ class ROSDataManager(
         assert self.train_dataset is not None
         # Setup custom dataloader for ROS, and print rostopic statuses
         # Everything else should be the same.
+        self.images_to_start = self.train_dataset.metadata["images_to_start"]
 
         self.train_image_dataloader = ROSDataloader(
             self.train_dataset,
