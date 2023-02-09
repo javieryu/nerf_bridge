@@ -71,5 +71,5 @@ We run NSROS on a fairly powerful workstation with a Ryzen 9 5900X CPU, NVIDIA R
 ### Workflow
 Our typical workflow is to first launch our drone into a hover, and launch the oCam node on the drones on-board computer. At the same time on the ground station we launch ORBSLAM2, and wait for a preliminary feature map to populate. Once the map is initially populated we run NSROS, and either manually fly the drone or launch it into a predefined trajectory. We monitor the NeRF quality through the Nerfstudio Viewer, and the SLAM status and training PoseArray in RViz. 
 
-
-
+## Acknowledgements
+NSROS is entirely enabled by the first-class work of the [Nerfstudio Development Team and community](https://github.com/nerfstudio-project/nerfstudio/#contributors).
