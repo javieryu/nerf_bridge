@@ -3,9 +3,9 @@
 ## Introduction
 This package implements a bridge between the [Robot Operating System](https://www.ros.org/) (ROS), and the excellent [Nerfstudio](https://docs.nerf.studio/en/latest/) package. Our goal with this package, the NSROS Bridge, is to provide a minimal and flexible starting point for robotics researchers to explore possible applications of neural implicit representations.  
 
-In our experience, when it comes to software in robotics, solutions are rarely one size fits all. To that end we cannot provide meticulous installation and implementation instructions that we will be sure will work for every robotics platform that this package might be used on. Rather we will try to outline the core components that you will need to get ROS working with Nerfstudio, and hopefully that will get you started on the road to creating some cool NeRFs with your robot.
+In our experience, when it comes to software in robotics, solutions are rarely one size fits all. To that end we cannot provide meticulous installation and implementation instructions that we will be sure will work for every robotics platform. Rather we will try to outline the core components that you will need to get ROS working with Nerfstudio, and hopefully that will get you started on the road to creating some cool NeRFs with your robot.
 
-The core functionality of NSROS is fairly simple. At runtime the user provides some basic information about the camera sensor, the name of a ROS Topic that publishes images, and the name of a ROS Topic that publishes a camera pose that corresponds to each image. Using this information NSROS starts an instance of Nerfstudio, initializes a ROS Node that listens to the image and pose topics, and pre-allocates two PyTorch Tensors of fixed size (one for the images and one for the corresponding poses). As training commences images and poses that are received by the NSROS node are copied into the pre-allocated data tensors, and in turn pixels are sampled from these data tensors and used to create a NeRF with Nerfstudio. This process continues until the limit of the pre-allocated tensors is reached at which point the NSROS stops copying in new images, and training proceeds on the fixed data until completion. 
+The core functionality of NSROS is fairly simple. At runtime the user provides some basic information about the camera sensor, the name of a ROS Topic that publishes images, and the name of a ROS Topic that publishes a camera pose that corresponds to each image. Using this information NSROS starts an instance of Nerfstudio, initializes a ROS Node that listens to the image and pose topics, and pre-allocates two PyTorch Tensors of fixed size (one for the images and one for the corresponding poses). As training commences, images and poses that are received by the NSROS node are copied into the pre-allocated data tensors, and in turn pixels are sampled from these data tensors and used to create a NeRF with Nerfstudio. This process continues until the limit of the pre-allocated tensors is reached at which point the NSROS stops copying in new images, and training proceeds on the fixed data until completion. 
 
 ## Requirements
 - A Linux machine (tested with Ubuntu 20.04)
@@ -15,18 +15,18 @@ The core functionality of NSROS is fairly simple. At runtime the user provides s
 - Some means by which to estimate pose of the camera (SLAM, motion capture system, etc)
 
 ## Installation  
-The first step to getting the NSROS Bridge working is to install Nerfstudio using the [directions](https://docs.nerf.studio/en/latest/quickstart/installation.html) in the their documentation. We provide Nerfstudio as a submodule (don't forget to [initialize the submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) after cloning or forking this repo) to this repository so that the version that we have tested this repository with is specified. 
+The first step to getting the NSROS Bridge working is to install Nerfstudio using the [directions](https://docs.nerf.studio/en/latest/quickstart/installation.html) their documentation. We provide Nerfstudio as a submodule (don't forget to [initialize the submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) after cloning or forking this repo) to this repository so that the version that we have tested this repository with is specified. 
 
 After Nerfstudio and it's dependencies are installed, the only remaining dependency should be ``rospkg``, which can be easily installed using ``pip install rospkg``.
 
 These instructions assume that ROS is already installed on the machine that you will be training on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
 
 ## Running and Configuring NSROS
-The design and configuration of NSROS is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs from image streams.
+The design and configuration of NSROS is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs online with ROS.
 
 Nerfstudio needs three key sources of data to train a NeRF: (1) color images, (2) camera poses corresponding to the color images, and (3) a camera model matching that of the camera that is being used. NSROS expects that (1) and (2) are published to corresponding ROS Image and StampedPose topics, and that the names of these topics as well as (3) are provided in a JSON configuration file when the bridge is launched. A sample NSROS configuration JSON is provided in the root of the repository, ``nsros_config_sample.json``. We recommend using the [``camera_calibration``](http://wiki.ros.org/camera_calibration) package to determine the camera model parameters. 
 
-Configuring the functionality of NSROS is done through the Nerfstudio configuration system, and information about the various settings can be found through the usual addition of the ``-h`` argument added to the launch script ``ros_train.py``. However, since this returns the configurable settings for both Nerfstudio and NSROS we provide a brief outline of the settings below.
+Configuring the functionality of NSROS is done through the Nerfstudio configuration system, and information about the various settings can be found through the usual addition of the ``-h`` argument added to the launch script ``ros_train.py``. However, since this returns the configurable settings for both Nerfstudio and NSROS we provide a brief outline of the NSROS specific settings below.
 
 | Option | Description | Default Setting |
 | :----- | :--------- | :-----: | 
@@ -55,7 +55,7 @@ The following is a description of the testing setup that we at the Stanford Mult
 ### Camera
 We use an **oCam-1CGN-U-T** camera from WithRobot to provide our stream of images. This camera has quite a few features that make it really nice for working with NeRFs.
 
-- Manual Exposure Control: the helps get consistent lighting in all of the images, and means we can mostly avoid messing with appearance embeddings in our NeRFs.
+- Manual Exposure Control: This helps get consistent lighting in all of the images, and means we can mostly avoid messing with appearance embeddings in our NeRFs.
 - Variable Focus: Image sharpness is essential for both the SLAM we use to pose the camera images, and also for achieving well defined geometric features in our NeRFs.
 - Global Shutter: We haven't done a lot of tests with rolling shutter cameras, but since we are interested in drone mounted cameras this helps with managing motion blur from vibrations and movement of the camera.
 - A Decent ROS Package: The manufacturers of this camera provide a ROS package that is reasonably easy to work with, and is easy to install, [link](https://github.com/withrobot/oCam/tree/master/Software/oCam_ROS_Package/ocam).
@@ -66,7 +66,7 @@ We currently use this camera mounted on a quadrotor that publishes images via Wi
 To pose our images we use ORBSLAM2 because it is easy to get working using the [orb_slam2_ros](http://wiki.ros.org/orb_slam2_ros) package, and importantly runs entirely on the CPU. In general the hardware bottleneck in a NeRF training pipeline will be the GPU and so this maximizes the resources available for Nerfstudio. 
 
 ### Linux Machine
-We run NSROS on a fairly powerful workstation with a Ryzen 9 5900X CPU, NVIDIA RTX 3090, and 32 GB of DDR4 RAM. This is by no means a minimum specification, but at minimum we recommend a graphics card with at least 8GB of VRAM. This machine is running Ubuntu 20.04, and has the full desktop version of ROS Noetic installed. 
+We run NSROS on a fairly powerful workstation with a Ryzen 9 5900X CPU, NVIDIA RTX 3090, and 32 GB of DDR4 RAM. This is by no means a minimum specification, but we recommend using a computer with a graphics card with atleast 8GB of VRAM and a modern CPU. Our machine is running Ubuntu 20.04, and has the full desktop version of ROS Noetic installed. 
 
 ### Workflow
 Our typical workflow is to first launch our drone into a hover, and launch the oCam node on the drones on-board computer. At the same time on the ground station we launch ORBSLAM2, and wait for a preliminary feature map to populate. Once the map is initially populated we run NSROS, and either manually fly the drone or launch it into a predefined trajectory. We monitor the NeRF quality through the Nerfstudio Viewer, and the SLAM status and training PoseArray in RViz. 
@@ -75,7 +75,7 @@ Our typical workflow is to first launch our drone into a hover, and launch the o
 NSROS is entirely enabled by the first-class work of the [Nerfstudio Development Team and community](https://github.com/nerfstudio-project/nerfstudio/#contributors).
 
 ## Citation
-In case anyone does use the NSROS Bridge as a starting point for any research please cite both the Nerfstudio repository and this repository.
+In case anyone does use the NSROS Bridge as a starting point for any research please cite both the Nerfstudio and this repository.
 
 ```
 # --------------------------- Nerfstudio -----------------------
