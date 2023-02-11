@@ -19,11 +19,11 @@
       <param name="min_num_kf_in_map" type="int" value="5" />
 
       <!-- ORB parameters -->
-      <param name="/ORBextractor/nFeatures" type="int" value="1500" />
+      <param name="/ORBextractor/nFeatures" type="int" value="1900" />
       <param name="/ORBextractor/scaleFactor" type="double" value="1.2" />
       <param name="/ORBextractor/nLevels" type="int" value="12" />
-      <param name="/ORBextractor/iniThFAST" type="int" value="22" />
-      <param name="/ORBextractor/minThFAST" type="int" value="10" />
+      <param name="/ORBextractor/iniThFAST" type="int" value="20" />
+      <param name="/ORBextractor/minThFAST" type="int" value="7" />
 
       <!-- Camera parameters -->
       <!-- Camera frames per second -->
