@@ -73,3 +73,28 @@ Our typical workflow is to first launch our drone into a hover, and launch the o
 
 ## Acknowledgements
 NSROS is entirely enabled by the first-class work of the [Nerfstudio Development Team and community](https://github.com/nerfstudio-project/nerfstudio/#contributors).
+
+## Citation
+In case anyone does use the NSROS Bridge as a starting point for any research please cite both the Nerfstudio repository and this repository.
+
+```
+# --------------------------- Nerfstudio -----------------------
+@article{nerfstudio,
+    author = {Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi,
+            Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
+            Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
+    title = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
+    journal = {arXiv preprint arXiv:2302.04264},
+    year = {2023},
+}
+
+
+# --------------------------- NSROS Bridge ---------------------
+@misc{nsros,
+    author = {Yu, Javier and Schwager, Mac},
+    title = {Nerfstudio ROS Bridge},
+    url = {https://github.com/javieryu/ns_ros}
+    year = {2023},
+
+}
+```
