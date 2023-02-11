@@ -1,2 +1,0 @@
-[tool.pyright]
-extraPaths = ["ns_ros", "configs"]
