@@ -18,7 +18,7 @@ import torch
 from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.process_data.colmap_utils import qvec2rotmat
-from nerfstudio.utils.poses import multiply
+import nerfstudio.utils.poses as pose_utils
 
 from nsros.ros_dataset import ROSDataset
 
@@ -54,7 +54,16 @@ def ros_pose_to_nerfstudio(pose: PoseStamped, static_transform=None):
     T = torch.cat([R, posi.unsqueeze(-1)], dim=-1)
     T = T.to(dtype=torch.float32)
     if static_transform is not None:
-        T = multiply(T, static_transform)
+        T = pose_utils.multiply(T, static_transform)
+        T2 = torch.zeros(3, 4)
+        R1 = transform.Rotation.from_euler("x", 90, degrees=True).as_matrix()
+        R2 = transform.Rotation.from_euler("z", 180, degrees=True).as_matrix()
+        R3 = transform.Rotation.from_euler("y", 180, degrees=True).as_matrix()
+        R = torch.from_numpy(R3 @ R2 @ R1)
+        T2[:, :3] = R
+        T = pose_utils.multiply(T2, T)
+
+
     return T.to(dtype=torch.float32)
 
 
@@ -106,8 +115,8 @@ class ROSDataloader(DataLoader):
         self.poselist = []
 
         self.coord_st = torch.zeros(3, 4)
-        R1 = transform.Rotation.from_euler("y", -90, degrees=True).as_matrix()
-        R2 = transform.Rotation.from_euler("x", 90, degrees=True).as_matrix()
+        R1 = transform.Rotation.from_euler("x", 180, degrees=True).as_matrix()
+        R2 = transform.Rotation.from_euler("z", 0, degrees=True).as_matrix()
         R = torch.from_numpy(R2 @ R1)
         self.coord_st[:, :3] = R
 
