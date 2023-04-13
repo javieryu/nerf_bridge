@@ -1,11 +1,14 @@
 # NerfBridge
 ![](indoor.gif)
+
+For a complete video see [https://youtu.be/EH0SLn-RcDg](https://youtu.be/EH0SLn-RcDg).
+
 ## Introduction
 This package implements a bridge between the [Robot Operating System](https://www.ros.org/) (ROS), and the excellent [Nerfstudio](https://docs.nerf.studio/en/latest/) package. Our goal with this package, the NerfBridge Bridge, is to provide a minimal and flexible starting point for robotics researchers to explore possible applications of neural implicit representations.  
 
 In our experience, when it comes to software in robotics, solutions are rarely one size fits all. To that end we cannot provide meticulous installation and implementation instructions that we will be sure will work for every robotics platform. Rather we will try to outline the core components that you will need to get ROS working with Nerfstudio, and hopefully that will get you started on the road to creating some cool NeRFs with your robot.
 
-The core functionality of NerfBridge is fairly simple. At runtime the user provides some basic information about the camera sensor, the name of a ROS Topic that publishes images, and the name of a ROS Topic that publishes a camera pose that corresponds to each image. Using this information NerfBridge starts an instance of Nerfstudio, initializes a ROS Node that listens to the image and pose topics, and pre-allocates two PyTorch Tensors of fixed size (one for the images and one for the corresponding poses). As training commences, images and poses that are received by the NerfBridge node are copied into the pre-allocated data tensors, and in turn pixels are sampled from these data tensors and used to create a NeRF with Nerfstudio. This process continues until the limit of the pre-allocated tensors is reached at which point the NerfBridge stops copying in new images, and training proceeds on the fixed data until completion. 
+The core functionality of NerfBridge is fairly simple. At runtime the user provides some basic information about the camera sensor, the name of a ROS Topic that publishes images, and the name of a ROS Topic that publishes a camera pose that corresponds to each image. Using this information NerfBridge starts an instance of Nerfstudio, initializes a ROS Node that listens to the image and pose topics, and pre-allocates two PyTorch Tensors of fixed size (one for the images and one for the corresponding poses). As training commences, images and poses that are received by the NerfBridge node are copied into the pre-allocated data tensors, and in turn pixels are sampled from these data tensors and used to create a NeRF with Nerfstudio. This process continues until the limit of the pre-allocated tensors is reached at which point the NerfBridge stops copying in new images, and training proceeds on the fixed data until completion.
 
 ## Requirements
 - A Linux machine (tested with Ubuntu 20.04)
