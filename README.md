@@ -1,5 +1,5 @@
 # NerfBridge
-
+![](indoor.gif)
 ## Introduction
 This package implements a bridge between the [Robot Operating System](https://www.ros.org/) (ROS), and the excellent [Nerfstudio](https://docs.nerf.studio/en/latest/) package. Our goal with this package, the NerfBridge Bridge, is to provide a minimal and flexible starting point for robotics researchers to explore possible applications of neural implicit representations.  
 
