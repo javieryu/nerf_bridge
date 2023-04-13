@@ -34,7 +34,9 @@ method_configs["ros_nerfacto"] = ROSTrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=ROSDataManagerConfig(
-            dataparser=ROSDataParserConfig(),
+            dataparser=ROSDataParserConfig(
+                aabb_scale=0.8,
+            ),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
