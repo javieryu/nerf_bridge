@@ -86,11 +86,11 @@ class ROSTrainer(Trainer):
         super()._update_viewer_state(step)
         #
         # # Clear any old cameras!
-        if self.first_update:
-            self.viewer_state.vis["sceneState/cameras"].delete()
-            self.first_update = False
-
         if self.config.draw_training_images:
+            if self.first_update:
+                self.viewer_state.vis["sceneState/cameras"].delete()
+                self.first_update = False
+
             # Draw any new training images
             image_indices = self.dataset.updated_indices
             for idx in image_indices:
