@@ -35,36 +35,41 @@ CONSOLE = Console(width=120)
 warnings.filterwarnings("ignore", "The given buffer")
 
 
-def ros_pose_to_nerfstudio(pose: PoseStamped, static_transform=None):
+def ros_pose_to_nerfstudio(pose_message: PoseStamped):
     """
-    Takes a ROS Pose message and converts it to the
-    3x4 transform format used by nerfstudio.
+    Converts a ROS PoseStamped message with pose in a coordinate frame matching
+    that used by ORBSLAM3 to the 3x4 transformation matrix convention used by
+    nerfstudio.
+
+    NOTE: This function should be modified if the pose message corresponds to
+    some other coordinate frame. See the note in the README.md for more information.
     """
-    pose_msg = pose.pose
-    quat = np.array(
-        [
-            pose_msg.orientation.w,
-            pose_msg.orientation.x,
-            pose_msg.orientation.y,
-            pose_msg.orientation.z,
-        ],
+    p = pose_message.pose
+    quat_ros = np.array(
+        [p.orientation.w, p.orientation.x, p.orientation.y, p.orientation.z]
     )
-    posi = torch.tensor([pose_msg.position.x, pose_msg.position.y, pose_msg.position.z])
-    R = torch.tensor(qvec2rotmat(quat))
-    T = torch.cat([R, posi.unsqueeze(-1)], dim=-1)
-    T = T.to(dtype=torch.float32)
-    if static_transform is not None:
-        T = pose_utils.multiply(T, static_transform)
-        T2 = torch.zeros(3, 4)
-        R1 = transform.Rotation.from_euler("x", 90, degrees=True).as_matrix()
-        R2 = transform.Rotation.from_euler("z", 180, degrees=True).as_matrix()
-        R3 = transform.Rotation.from_euler("y", 180, degrees=True).as_matrix()
-        R = torch.from_numpy(R3 @ R2 @ R1)
-        T2[:, :3] = R
-        T = pose_utils.multiply(T2, T)
+    trans_ros = torch.tensor([p.position.x, p.position.y, p.position.z])
+    T_ros = torch.cat(
+        [torch.tensor(qvec2rotmat(quat_ros)), trans_ros.unsqueeze(-1)], dim=-1
+    )
+    T_ros = T_ros.to(dtype=torch.float32)
 
+    # RHS Transformation
+    R1 = transform.Rotation.from_euler("x", 180, degrees=True).as_matrix()
+    R2 = transform.Rotation.from_euler("z", 0, degrees=True).as_matrix()
+    rhs = torch.zeros(3, 4)
+    rhs[:, :3] = torch.from_numpy(R2 @ R1)
+    T_ns = pose_utils.multiply(T_ros, rhs)
 
-    return T.to(dtype=torch.float32)
+    # LHS Transformation
+    R1 = transform.Rotation.from_euler("x", 90, degrees=True).as_matrix()
+    R2 = transform.Rotation.from_euler("z", 180, degrees=True).as_matrix()
+    R3 = transform.Rotation.from_euler("y", 180, degrees=True).as_matrix()
+    lhs = torch.zeros(3, 4)
+    lhs[:, :3] = torch.from_numpy(R3 @ R2 @ R1)
+    T_ns = pose_utils.multiply(lhs, T_ns)
+
+    return T_ns.to(dtype=torch.float32)
 
 
 class ROSDataloader(DataLoader):
@@ -113,12 +118,6 @@ class ROSDataloader(DataLoader):
         self.last_update_t = time.perf_counter()
         self.publish_posearray = publish_posearray
         self.poselist = []
-
-        self.coord_st = torch.zeros(3, 4)
-        R1 = transform.Rotation.from_euler("x", 180, degrees=True).as_matrix()
-        R2 = transform.Rotation.from_euler("z", 0, degrees=True).as_matrix()
-        R = torch.from_numpy(R2 @ R1)
-        self.coord_st[:, :3] = R
 
         # Keep it in the format so that it makes it look more like a
         # regular data loader.
@@ -169,7 +168,7 @@ class ROSDataloader(DataLoader):
             self.dataset.image_tensor[self.current_idx] = im_tensor
 
             # ----------------- Handling the POSE ----------------
-            c2w = ros_pose_to_nerfstudio(pose, static_transform=self.coord_st)
+            c2w = ros_pose_to_nerfstudio(pose)
             device = self.dataset.cameras.device
             c2w = c2w.to(device)
             self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w
