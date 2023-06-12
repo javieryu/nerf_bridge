@@ -93,11 +93,10 @@ In case anyone does use the NerfBridge as a starting point for any research plea
 
 
 # --------------------------- NerfBridge ---------------------
-@misc{nsros,
-    author = {Yu, Javier and Schwager, Mac},
-    title = {NerfBridge},
-    url = {https://github.com/javieryu/nerf_bridge}
-    year = {2023},
-
+@article{yu2023nerfbridge,
+  title={NerfBridge: Bringing Real-time, Online Neural Radiance Field Training to Robotics},
+  author={Yu, Javier and Low, Jun En and Nagami, Keiko and Schwager, Mac},
+  journal={arXiv preprint arXiv:2305.09761},
+  year={2023}
 }
 ```
