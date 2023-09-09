@@ -29,8 +29,8 @@ from rich.console import Console
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.utils import profiler
 
-from nsros.method_configs import AnnotatedBaseConfigUnion
-from nsros.ros_trainer import ROSTrainerConfig
+from nerfbridge.method_configs import AnnotatedBaseConfigUnion
+from nerfbridge.ros_trainer import ROSTrainerConfig
 
 CONSOLE = Console(width=120)
 
