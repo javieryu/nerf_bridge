@@ -1,5 +1,5 @@
 """
-A datamanager for the NSROS Bridge.
+A datamanager for the NerfBridge.
 """
 
 from dataclasses import dataclass, field
@@ -11,9 +11,9 @@ from nerfstudio.data.datamanagers import base_datamanager
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.cameras.rays import RayBundle
 
-from nsros.ros_dataset import ROSDataset
-from nsros.ros_dataloader import ROSDataloader
-from nsros.ros_dataparser import ROSDataParserConfig
+from nerfbridge.ros_dataset import ROSDataset
+from nerfbridge.ros_dataloader import ROSDataloader
+from nerfbridge.ros_dataparser import ROSDataParserConfig
 
 
 CONSOLE = Console(width=120)
@@ -32,6 +32,12 @@ class ROSDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
     """ Frequency, in Hz, that images are added to the training dataset tensor. """
     num_training_images: int = 500
     """ Number of images to train on (for dataset tensor pre-allocation). """
+    slam_method: str = "cuvslam"
+    """ Which slam method is being used. """
+    topic_sync: str = "approx"
+    """ Whether to use approximate or exact time synchronization for pose image pairs."""
+    topic_slop: float = 0.05
+    """ Slop in seconds for approximate time synchronization."""
 
 
 class ROSDataManager(
@@ -60,8 +66,10 @@ class ROSDataManager(
         assert self.train_dataset is not None
         self.train_image_dataloader = ROSDataloader(
             self.train_dataset,
-            self.config.publish_training_posearray,
             self.config.data_update_freq,
+            self.config.slam_method,
+            self.config.topic_sync,
+            self.config.topic_slop,
             device=self.device,
             num_workers=0,
             pin_memory=True,

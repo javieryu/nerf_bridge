@@ -1,0 +1,13 @@
+[project]
+name = "nerfbridge"
+version = "0.1"
+
+dependencies = [
+	"nerfstudio==0.3.3"
+]
+
+[tool.setuptools.packages.find]
+include = ["nerfbridge*"]
+
+[tool.pyright]
+extraPaths = ["nerfbridge"]

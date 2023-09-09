@@ -11,21 +11,19 @@ import time
 import warnings
 from typing import Union
 
-import numpy as np
-import scipy.spatial.transform as transform
 from rich.console import Console
 import torch
 from torch.utils.data.dataloader import DataLoader
 
-from nerfstudio.process_data.colmap_utils import qvec2rotmat
-import nerfstudio.utils.poses as pose_utils
+import nerfbridge.pose_utils as pose_utils
+from nerfbridge.ros_dataset import ROSDataset
 
-from nsros.ros_dataset import ROSDataset
-
-import rospy
+import rclpy
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import PoseStamped, PoseArray
-from message_filters import TimeSynchronizer, Subscriber
+from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Odometry
+from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
+from cv_bridge import CvBridge
 
 
 CONSOLE = Console(width=120)
@@ -33,43 +31,6 @@ CONSOLE = Console(width=120)
 # Suppress a warning from torch.tensorbuffer about copying that
 # does not apply in this case.
 warnings.filterwarnings("ignore", "The given buffer")
-
-
-def ros_pose_to_nerfstudio(pose_message: PoseStamped):
-    """
-    Converts a ROS PoseStamped message with pose in a coordinate frame matching
-    that used by ORBSLAM3 to the 3x4 transformation matrix convention used by
-    nerfstudio.
-
-    NOTE: This function should be modified if the pose message corresponds to
-    some other coordinate frame. See the note in the README.md for more information.
-    """
-    p = pose_message.pose
-    quat_ros = np.array(
-        [p.orientation.w, p.orientation.x, p.orientation.y, p.orientation.z]
-    )
-    trans_ros = torch.tensor([p.position.x, p.position.y, p.position.z])
-    T_ros = torch.cat(
-        [torch.tensor(qvec2rotmat(quat_ros)), trans_ros.unsqueeze(-1)], dim=-1
-    )
-    T_ros = T_ros.to(dtype=torch.float32)
-
-    # RHS Transformation
-    R1 = transform.Rotation.from_euler("x", 180, degrees=True).as_matrix()
-    R2 = transform.Rotation.from_euler("z", 0, degrees=True).as_matrix()
-    rhs = torch.zeros(3, 4)
-    rhs[:, :3] = torch.from_numpy(R2 @ R1)
-    T_ns = pose_utils.multiply(T_ros, rhs)
-
-    # LHS Transformation
-    R1 = transform.Rotation.from_euler("x", 90, degrees=True).as_matrix()
-    R2 = transform.Rotation.from_euler("z", 180, degrees=True).as_matrix()
-    R3 = transform.Rotation.from_euler("y", 180, degrees=True).as_matrix()
-    lhs = torch.zeros(3, 4)
-    lhs[:, :3] = torch.from_numpy(R3 @ R2 @ R1)
-    T_ns = pose_utils.multiply(lhs, T_ns)
-
-    return T_ns.to(dtype=torch.float32)
 
 
 class ROSDataloader(DataLoader):
@@ -88,6 +49,13 @@ class ROSDataloader(DataLoader):
             this dataloader subscribes (pose and images) then this subsamples the ROS data.
             Otherwise, if the value is larger than the ROS topic rates then every pair of
             messages is added to the training bag.
+        slam_method: string that determines which type of pose topic to subscribe to and
+            what coordinate transforms to use when handling the poses. Currently, only
+            "cuvslam" is supported.
+        topic_sync: use "exact" when your slam algorithm matches pose and image time stamps,
+            and use "approx" when it does not.
+        topic_slop: if using approximate time synchronization, then this float determines
+            the slop in seconds that is allowable between images and poses.
         device: Device to perform computation.
     """
 
@@ -96,8 +64,10 @@ class ROSDataloader(DataLoader):
     def __init__(
         self,
         dataset: ROSDataset,
-        publish_posearray: bool,
         data_update_freq: float,
+        slam_method: str,
+        topic_sync: str,
+        topic_slop: float,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
@@ -116,7 +86,6 @@ class ROSDataloader(DataLoader):
         self.updated = True
         self.update_period = 1 / data_update_freq
         self.last_update_t = time.perf_counter()
-        self.publish_posearray = publish_posearray
         self.poselist = []
 
         # Keep it in the format so that it makes it look more like a
@@ -128,13 +97,39 @@ class ROSDataloader(DataLoader):
 
         super().__init__(dataset=dataset, **kwargs)
 
-        # All of the ROS CODE
-        rospy.init_node("nsros_dataloader", anonymous=True)
-        self.image_sub = Subscriber(self.dataset.image_topic_name, Image)
-        self.pose_sub = Subscriber(self.dataset.pose_topic_name, PoseStamped)
-        self.ts = TimeSynchronizer([self.image_sub, self.pose_sub], 10)
+        self.bridge = CvBridge()
+        self.slam_method = slam_method
+
+        # Initializing ROS2
+        rclpy.init()
+        self.node = rclpy.create_node("nerf_bridge_node", namespace="/nerf_bridge")
+
+        # Setting up ROS2 message_filter TimeSynchronzier
+        self.image_sub = Subscriber(
+            self.node,
+            Image,
+            self.dataset.image_topic_name,
+        )
+
+        if slam_method == "cuvslam":
+            self.pose_sub = Subscriber(
+                self.node, Odometry, self.dataset.pose_topic_name
+            )
+        if slam_method == "orbslam3":
+            self.pose_sub = Subscriber(
+                self.node, PoseStamped, self.dataset.pose_topic_name
+            )
+        else:
+            raise NameError("Unsupported SLAM algorithm!")
+
+        if topic_sync == "approx":
+            self.ts = ApproximateTimeSynchronizer(
+                [self.image_sub, self.pose_sub], 10, topic_slop
+            )
+        if topic_sync == "exact":
+            self.ts = TimeSynchronizer([self.image_sub, self.pose_sub], 10)
+
         self.ts.registerCallback(self.ts_image_pose_callback)
-        self.posearray_pub = rospy.Publisher("training_poses", PoseArray, queue_size=1)
 
     def msg_status(self, num_to_start):
         """
@@ -143,7 +138,7 @@ class ROSDataloader(DataLoader):
         """
         return self.current_idx >= (num_to_start - 1)
 
-    def ts_image_pose_callback(self, image: Image, pose: PoseStamped):
+    def ts_image_pose_callback(self, image: Image, pose: PoseStamped | Odometry):
         """
         The callback triggered when time synchronized image and pose messages
         are published on the topics specifed in the config JSON passed to
@@ -156,10 +151,8 @@ class ROSDataloader(DataLoader):
         ):
             # ----------------- Handling the IMAGE ----------------
             # Load the image message directly into the torch
-            im_tensor = torch.frombuffer(image.data, dtype=torch.uint8).reshape(
-                self.H, self.W, -1
-            )
-            im_tensor = im_tensor.to(dtype=torch.float32) / 255.0
+            im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
             # Convert BGR -> RGB (this adds an extra copy, and might be able to
             # skip if we do something fancy with the reshape above)
             im_tensor = im_tensor.flip([-1])
@@ -168,16 +161,19 @@ class ROSDataloader(DataLoader):
             self.dataset.image_tensor[self.current_idx] = im_tensor
 
             # ----------------- Handling the POSE ----------------
-            c2w = ros_pose_to_nerfstudio(pose)
-            device = self.dataset.cameras.device
-            c2w = c2w.to(device)
-            self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w
+            if self.slam_method == "cuvslam":
+                # Odometry Message
+                hom_pose = pose_utils.ros_pose_to_homogenous(pose.pose)
+                c2w = pose_utils.cuvslam_to_nerfstudio(hom_pose)
+            elif self.slam_method == "orbslam3":
+                # PoseStamped Message
+                hom_pose = pose_utils.ros_pose_to_homogenous(pose)
+                c2w = pose_utils.orbslam3_to_nerfstudio(hom_pose)
+            else:
+                raise NameError("Unknown SLAM Method!")
 
-            if self.publish_posearray:
-                self.poselist.append(pose.pose)
-                pa = PoseArray(poses=self.poselist)
-                pa.header.frame_id = "map"
-                self.posearray_pub.publish(pa)
+            device = self.dataset.cameras.device
+            self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w.to(device)
 
             self.dataset.updated_indices.append(self.current_idx)
 

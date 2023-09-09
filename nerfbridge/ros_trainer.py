@@ -10,7 +10,7 @@ from rich.console import Console
 from nerfstudio.utils.decorators import check_viewer_enabled
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
 
-from nsros.ros_dataset import ROSDataset
+from nerfbridge.ros_dataset import ROSDataset
 
 CONSOLE = Console(width=120)
 
@@ -53,7 +53,7 @@ class ROSTrainer(Trainer):
         # Start Status check loop
         status = False
         CONSOLE.print(
-            f"[bold green] (NSROS) Waiting for for image streaming to begin ...."
+            f"[bold green] (NerfBridge) Waiting for for image streaming to begin ...."
         )
         while time.perf_counter() - start < self.msg_timeout:
             if self.pipeline.datamanager.train_image_dataloader.msg_status(  # pyright: ignore
@@ -72,7 +72,7 @@ class ROSTrainer(Trainer):
             )
         else:
             CONSOLE.print(
-                "[bold green] (NSROS) Dataloader is successfully streaming images!"
+                "[bold green] (NerfBridge) Dataloader is successfully streaming images!"
             )
 
     @check_viewer_enabled

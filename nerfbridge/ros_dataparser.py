@@ -23,7 +23,7 @@ class ROSDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: ROSDataParser)
     """target class to instantiate"""
-    data: Path = Path("data/ros/nsros_config.json")
+    data: Path = Path("data/ros/nerfbridge_config.json")
     """ Path to configuration JSON. """
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -51,7 +51,7 @@ class ROSDataParser(DataParser):
         """
         This function generates a DataParserOutputs object. Typically in Nerfstudio
         this is used to populate the training and evaluation datasets, but since with
-        NSROS Bridge our aim is to stream the data then we only have to worry about
+        NerfBridge our aim is to stream the data then we only have to worry about
         loading the proper camera parameters and ROS topic names.
 
         Args:

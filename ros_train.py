@@ -11,6 +11,9 @@ all of the distributed training code that is not support by the NSROS Bridge.
 All of the tyro help functionality should still work, but instead of a CLI
 just call this script directly:
     python ros_train.py ros_nerfacto --data /path/to/config.json [OPTIONS]
+
+Code adapted from Nerfstudio
+https://github.com/nerfstudio-project/nerfstudio/blob/df784e96e7979aaa4320284c087d7036dce67c28/scripts/train.py
 """
 
 import signal
@@ -61,16 +64,13 @@ def main(config: ROSTrainerConfig) -> None:
     # print and save config
     config.print_to_terminal()
     config.save_config()
-    try:
-        _set_random_seed(config.machine.seed)
-        trainer = config.setup(local_rank=0, world_size=1)
-        trainer.setup()
-        trainer.train()
-    except KeyboardInterrupt:
-        # print the stack trace
-        CONSOLE.print(traceback.format_exc())
-    finally:
-        profiler.flush_profiler(config.logging)
+    _set_random_seed(config.machine.seed)
+    trainer = config.setup(local_rank=0, world_size=1)
+    trainer.setup()
+    trainer.train()
+    # print the stack trace
+    CONSOLE.print(traceback.format_exc())
+    profiler.flush_profiler(config.logging)
 
 
 def entrypoint():
@@ -86,5 +86,5 @@ def entrypoint():
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, sigint_handler)
+    # signal.signal(signal.SIGINT, sigint_handler)
     entrypoint()

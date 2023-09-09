@@ -17,9 +17,9 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
-from nsros.ros_datamanager import ROSDataManagerConfig
-from nsros.ros_dataparser import ROSDataParserConfig
-from nsros.ros_trainer import ROSTrainerConfig
+from nerfbridge.ros_datamanager import ROSDataManagerConfig
+from nerfbridge.ros_dataparser import ROSDataParserConfig
+from nerfbridge.ros_trainer import ROSTrainerConfig
 
 method_configs: Dict[str, ROSTrainerConfig] = {}
 descriptions = {
