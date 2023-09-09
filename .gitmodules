@@ -1,3 +1,0 @@
-[submodule "nerfstudio"]
-	path = nerfstudio
-	url = git@github.com:nerfstudio-project/nerfstudio.git
