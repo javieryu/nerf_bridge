@@ -20,7 +20,7 @@ class ROSTrainerConfig(TrainerConfig):
     _target: Type = field(default_factory=lambda: ROSTrainer)
     msg_timeout: float = 60.0
     """ How long to wait (seconds) for sufficient images to be received before training. """
-    num_msgs_to_start: int = 30
+    num_msgs_to_start: int = 3
     """ Number of images that must be recieved before training can start. """
     draw_training_images: bool = False
     """ Whether or not to draw the training images in the viewer. """
@@ -37,7 +37,6 @@ class ROSTrainer(Trainer):
         super().__init__(config, local_rank=local_rank, world_size=world_size)
         self.msg_timeout = self.config.msg_timeout
         self.cameras_drawn = []
-        self.first_update = True
         self.num_msgs_to_start = config.num_msgs_to_start
 
     def setup(self, test_mode: Literal["test", "val", "inference"] = "val"):
@@ -75,7 +74,6 @@ class ROSTrainer(Trainer):
                 "[bold green] (NerfBridge) Dataloader is successfully streaming images!"
             )
 
-    @check_viewer_enabled
     def _update_viewer_state(self, step: int):
         """
         Updates the viewer state by rendering out scene with current pipeline
@@ -84,13 +82,9 @@ class ROSTrainer(Trainer):
             step: current train step
         """
         super()._update_viewer_state(step)
-        #
+
         # # Clear any old cameras!
         if self.config.draw_training_images:
-            if self.first_update:
-                self.viewer_state.vis["sceneState/cameras"].delete()
-                self.first_update = False
-
             # Draw any new training images
             image_indices = self.dataset.updated_indices
             for idx in image_indices:
@@ -101,10 +95,7 @@ class ROSTrainer(Trainer):
                     image = self.dataset[idx]["image"]
                     bgr = image[..., [2, 1, 0]]
                     camera_json = self.dataset.cameras.to_json(
-                        camera_idx=idx, image=bgr, max_size=10
+                        camera_idx=idx, image=bgr, max_size=100
                     )
-
-                    self.viewer_state.vis[f"sceneState/cameras/{idx:06d}"].write(
-                        camera_json
-                    )
+                    self.viewer_state.viser_server.add_dataset_image(idx=f"{idx:06d}", json=camera_json)
                     self.cameras_drawn.append(idx)
