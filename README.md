@@ -20,14 +20,16 @@ The core functionality of NerfBridge is fairly simple. At runtime the user provi
 ## Installation  
 The first step to getting NerfBridge working is to install **just** the dependencies for Nerfstudio using the [installation guide](https://docs.nerf.studio/en/latest/quickstart/installation.html). Then once the dependencies are installed, install Nerfbridge (and Nerfstudio v0.3.3) using ``pip install -e .`` in the root of this repository.
 
-These instructions assume that ROS2 is already installed on the machine that you will be training on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
+This will add NerfBridge to the list of available methods for on the Nerfstudio CLI. To test if NerfBridge is being registered by the CLI after installation run ``ns-train -h``, and if installation was successful then you should see ``ros-nerfacto`` in the list of available methods.
+
+These instructions assume that ROS2 is already installed on the machine that you will be running NerfBridge on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
 
 ## Running and Configuring NerfBridge
 The design and configuration of NerfBridge is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs online with ROS.
 
 Nerfstudio needs three key sources of data to train a NeRF: (1) color images, (2) camera poses corresponding to the color images, and (3) a camera model matching that of the camera that is being used. NerfBridge expects that (1) and (2) are published to corresponding ROS image and pose topics, and that the names of these topics as well as (3) are provided in a JSON configuration file when the bridge is launched. A sample NerfBridge configuration JSON is provided in the root of the repository, ``nerfbridge_config_sample.json``. We recommend using the [``camera_calibration``](http://wiki.ros.org/camera_calibration) package to determine the camera model parameters. 
 
-Configuring the functionality of NerfBridge is done through the Nerfstudio configuration system, and information about the various settings can be found through the usual addition of the ``-h`` argument added to the launch script ``ros_train.py``. However, since this returns the configurable settings for both Nerfstudio and NerfBridge we provide a brief outline of the NerfBridge specific settings below.
+Configuring the functionality of NerfBridge is done through the Nerfstudio configuration system, and information about the various settings can be found using the command ``ns-train ros-nerfacto -h``. However, since this returns the configurable settings for both Nerfstudio and NerfBridge we provide a brief outline of the NerfBridge specific settings below.
 
 | Option | Description | Default Setting |
 | :----- | :--------- | :-----: | 
@@ -40,20 +42,20 @@ Configuring the functionality of NerfBridge is done through the Nerfstudio confi
 | ``pipeline.datamanager.topic_sync`` | Selects between ``[exact, approx]`` which correspond to the variety of [TimeSynchronizer](http://docs.ros.org/en/lunar/api/message_filters/html/python) . | ``exact`` |
 | ``pipeline.datamanager.topic_slop`` | If an approximate time synchronization is used, then this parameters controls the allowable slop, in seconds, between the image and pose topics to consider a match. | 0.05 (s) |
 
-To launch the NerfBridge (which also starts Nerfstudio) use the command command below.
+To launch NerfBridge we use the Nerfstudio CLI with the command command below.
 ```
-python ros_train.py --data /path/to/config.json [OPTIONS]
+ns-train ros-nerfacto --data /path/to/config.json [OPTIONS]
 ```
 After initializing the Nerfstudio, NerfBridge will show a prompt that it is waiting to receive the appropriate number of images before training starts. When that goal has been reached another prompt will indicate the beginning of training, and then its off to the races!
 
 To set the options above replace ``[OPTIONS]`` with the option name and value. For example:
 ```
-python ros_train.py --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
+ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
 ```
 will set the data update frequency to 1 Hz.
 
-## Our Testing Setup
-The following is a description of the testing setup that we at the Stanford Multi-robot Systems Lab have been using to train NeRFs online with NerfBridge.
+## Our Setup
+The following is a description of the setup that we at the Stanford Multi-robot Systems Lab have been using to train NeRFs online with NerfBridge from images captured by a camera mounted to a quadrotor.
 
 ### Camera
 We use a **Intel Realsense D455** camera to provide our stream of images. This camera has quite a few features that make it really nice for working with NeRFs.
