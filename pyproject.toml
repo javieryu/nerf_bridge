@@ -11,3 +11,6 @@ include = ["nerfbridge*"]
 
 [tool.pyright]
 extraPaths = ["nerfbridge"]
+
+[project.entry-points.'nerfstudio.method_configs']
+ros-nerfacto = 'nerfbridge.method_configs:RosNerfacto'
