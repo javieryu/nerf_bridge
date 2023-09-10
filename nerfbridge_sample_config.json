@@ -1,15 +1,11 @@
 {
-	"fx": 968.7,
-	"fy": 966.0,
-	"cx": 646.5,
-	"cy": 365.5,
-	"k1": -0.4,
-	"k2": 0.15,
-	"k3": 0.0,
-	"p1": 0.000644,
-	"p2": 0.0012,
-	"H": 720,
-	"W": 1280,
-	"image_topic": "/camera/image_raw",
-	"pose_topic": "/orb_slam2_mono/pose"
+    "camera_model": "PINHOLE",
+    "fx": 422.49163818359375,
+    "fy": 422.0202941894531,
+    "cx": 428.5213317871094,
+    "cy": 247.27781677246094,
+    "W": 848,
+    "H": 480,
+    "image_topic": "/camera/color/image_raw",
+    "pose_topic": "/visual_slam/tracking/odometry"
 }

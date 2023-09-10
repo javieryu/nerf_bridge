@@ -2,6 +2,8 @@ import torch
 from geometry_msgs.msg import Pose
 from scipy.spatial.transform import Rotation
 
+import pdb
+
 """
 Utilities for converting ROS2 pose messages to torch tensors, and for converting
 poses expressed in other coordinate systems to the Nerfstudio coordinate sytem.
@@ -25,7 +27,7 @@ def ros_pose_to_homogenous(pose_message: Pose):
 
     T = torch.eye(4)
     T[:3, :3] = torch.from_numpy(R)
-    T[3, :3] = t
+    T[:3, 3] = t
     return T.to(dtype=torch.float32)
 
 

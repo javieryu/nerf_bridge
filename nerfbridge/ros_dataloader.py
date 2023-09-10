@@ -8,6 +8,7 @@ Image and pose pairs are added at a prescribed frequency and intermediary images
 are discarded (could be used for evaluation down the line).
 """
 import time
+import threading
 import warnings
 from typing import Union
 
@@ -25,6 +26,7 @@ from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
 from cv_bridge import CvBridge
 
+import pdb
 
 CONSOLE = Console(width=120)
 
@@ -102,7 +104,7 @@ class ROSDataloader(DataLoader):
 
         # Initializing ROS2
         rclpy.init()
-        self.node = rclpy.create_node("nerf_bridge_node", namespace="/nerf_bridge")
+        self.node = rclpy.create_node("nerf_bridge_node")
 
         # Setting up ROS2 message_filter TimeSynchronzier
         self.image_sub = Subscriber(
@@ -115,7 +117,7 @@ class ROSDataloader(DataLoader):
             self.pose_sub = Subscriber(
                 self.node, Odometry, self.dataset.pose_topic_name
             )
-        if slam_method == "orbslam3":
+        elif slam_method == "orbslam3":
             self.pose_sub = Subscriber(
                 self.node, PoseStamped, self.dataset.pose_topic_name
             )
@@ -130,6 +132,12 @@ class ROSDataloader(DataLoader):
             self.ts = TimeSynchronizer([self.image_sub, self.pose_sub], 10)
 
         self.ts.registerCallback(self.ts_image_pose_callback)
+
+        # Start a thread for processing the callbacks
+        self.ros_thread = threading.Thread(
+            target=rclpy.spin, args=(self.node,), daemon=True
+        )
+        self.ros_thread.start()
 
     def msg_status(self, num_to_start):
         """

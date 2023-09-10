@@ -20,7 +20,7 @@ class ROSTrainerConfig(TrainerConfig):
     _target: Type = field(default_factory=lambda: ROSTrainer)
     msg_timeout: float = 60.0
     """ How long to wait (seconds) for sufficient images to be received before training. """
-    num_msgs_to_start: int = 3
+    num_msgs_to_start: int = 30
     """ Number of images that must be recieved before training can start. """
     draw_training_images: bool = False
     """ Whether or not to draw the training images in the viewer. """
