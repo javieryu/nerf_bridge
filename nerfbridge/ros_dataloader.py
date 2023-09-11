@@ -161,9 +161,6 @@ class ROSDataloader(DataLoader):
             # Load the image message directly into the torch
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
             im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
-            # Convert BGR -> RGB (this adds an extra copy, and might be able to
-            # skip if we do something fancy with the reshape above)
-            im_tensor = im_tensor.flip([-1])
 
             # COPY the image data into the data tensor
             self.dataset.image_tensor[self.current_idx] = im_tensor
