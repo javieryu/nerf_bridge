@@ -20,7 +20,7 @@ import nerfbridge.pose_utils as pose_utils
 from nerfbridge.ros_dataset import ROSDataset, ROSDepthDataset
 
 import rclpy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
@@ -70,6 +70,7 @@ class ROSDataloader(DataLoader):
         slam_method: str,
         topic_sync: str,
         topic_slop: float,
+        use_compressed_rgb: bool,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
@@ -107,6 +108,7 @@ class ROSDataloader(DataLoader):
 
         self.bridge = CvBridge()
         self.slam_method = slam_method
+        self.use_compressed_rgb = use_compressed_rgb
 
         # Initializing ROS2
         rclpy.init()
@@ -114,19 +116,32 @@ class ROSDataloader(DataLoader):
 
         # Setting up ROS2 message_filter TimeSynchronzier
         self.subs = []
-        self.subs.append(
-            Subscriber(
-                self.node,
-                Image,
-                self.dataset.image_topic_name,
+        if self.use_compressed_rgb:
+            self.subs.append(
+                Subscriber(
+                    self.node,
+                    CompressedImage,
+                    self.dataset.image_topic_name,
+                )
             )
-        )
+        else:
+            self.subs.append(
+                Subscriber(
+                    self.node,
+                    Image,
+                    self.dataset.image_topic_name,
+                )
+            )
 
         if slam_method == "cuvslam":
             self.subs.append(
                 Subscriber(self.node, Odometry, self.dataset.pose_topic_name)
             )
         elif slam_method == "orbslam3":
+            self.subs.append(
+                Subscriber(self.node, PoseStamped, self.dataset.pose_topic_name)
+            )
+        elif slam_method == "mocap":
             self.subs.append(
                 Subscriber(self.node, PoseStamped, self.dataset.pose_topic_name)
             )
@@ -183,13 +198,17 @@ class ROSDataloader(DataLoader):
             self.current_idx += 1
             self.last_update_t = now
 
-    def image_callback(self, image: Image):
+    def image_callback(self, image: Image | CompressedImage):
         """
         Callback for processing RGB Image Messages, and adding them to the
         dataset for training.
         """
         # Load the image message directly into the torch
-        im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+        if self.use_compressed_rgb:
+            im_cv = self.bridge.compressed_imgmsg_to_cv2(image)
+        else:
+            im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+
         im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
         # COPY the image data into the data tensor
@@ -208,6 +227,10 @@ class ROSDataloader(DataLoader):
             # PoseStamped Message
             hom_pose = pose_utils.ros_pose_to_homogenous(pose)
             c2w = pose_utils.orbslam3_to_nerfstudio(hom_pose)
+        elif self.slam_method == "mocap":
+            # PoseStamped Message
+            hom_pose = pose_utils.ros_pose_to_homogenous(pose)
+            c2w = pose_utils.mocap_to_nerfstudio(hom_pose)
         else:
             raise NameError("Unknown SLAM Method!")
 

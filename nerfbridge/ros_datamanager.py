@@ -46,6 +46,8 @@ class ROSDataManagerConfig(VanillaDataManagerConfig):
     """ Whether to use approximate or exact time synchronization for pose image pairs."""
     topic_slop: float = 0.05
     """ Slop in seconds for approximate time synchronization."""
+    use_compressed_rgb: bool = False
+    """ Whether to use compressed RGB image topic or not."""
 
 
 TDataset = TypeVar("TDataset", bound=ROSDataset, default=ROSDataset)
@@ -76,8 +78,8 @@ class ROSDataManager(
     @cached_property
     def dataset_type(self) -> Type[TDataset]:
         """
-        Returns the dataset type passed as the generic argument. 
-        
+        Returns the dataset type passed as the generic argument.
+
         NOTE: Hacked from the Vanilla DataManager implementation.
         """
         default: Type[TDataset] = cast(TDataset, TDataset.__default__)  # type: ignore
@@ -95,6 +97,7 @@ class ROSDataManager(
             self.config.slam_method,
             self.config.topic_sync,
             self.config.topic_slop,
+            self.config.use_compressed_rgb,
             device=self.device,
             num_workers=0,
             pin_memory=True,
