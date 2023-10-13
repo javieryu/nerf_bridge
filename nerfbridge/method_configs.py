@@ -12,6 +12,7 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
+from nerfstudio.model_components.losses import DepthLossType
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 from nerfbridge.ros_datamanager import ROSDataManagerConfig, ROSDataManager
@@ -97,4 +98,55 @@ RosDepthNerfacto = MethodSpecification(
         vis="viewer",
     ),
     description="Run NerfBridge with the DepthNerfacto model, and train with streamed RGB and depth images.",
+)
+
+NerfBridgeDemo = MethodSpecification(
+    config=ROSTrainerConfig(
+        method_name="nerfbridge-demo",
+        steps_per_eval_batch=500,
+        steps_per_save=30000,
+        max_num_iterations=30000,
+        mixed_precision=True,
+        draw_training_images=True,
+        pipeline=VanillaPipelineConfig(
+            datamanager=ROSDataManagerConfig(
+                _target=ROSDataManager[ROSDepthDataset],
+                pixel_sampler=PairPixelSamplerConfig(),
+                dataparser=ROSDataParserConfig(
+                    scale_factor=0.1,
+                    aabb_scale=2.0,
+                ),
+                train_num_rays_per_batch=4096,
+                eval_num_rays_per_batch=4096,
+                camera_optimizer=CameraOptimizerConfig(
+                    mode="SO3xR3",
+                    optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+                ),
+                use_compressed_rgb=True,
+                topic_slop=0.02,
+                slam_method="mocap",
+                data_update_freq=3.0,
+                num_training_images=300
+            ),
+            model=DepthNerfactoModelConfig(
+                eval_num_rays_per_chunk=1 << 15,
+                depth_loss_mult=1.0,
+                depth_sigma=0.01,
+                depth_loss_type=DepthLossType.URF
+            ),
+        ),
+        optimizers={
+            "proposal_networks": {
+                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+            },
+            "fields": {
+                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+            },
+        },
+        viewer=ViewerConfig(num_rays_per_chunk=20000),
+        vis="viewer",
+    ),
+    description="Run NerfBridge for live demos in MSL Flightroom.",
 )

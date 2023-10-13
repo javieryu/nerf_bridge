@@ -62,6 +62,6 @@ def mocap_to_nerfstudio(T_mocap: torch.Tensor):
     Converts a homogenous matrix 4x4 from the coordinate system used in mocap
     to the Nerfstudio camera coordinate system 3x4 matrix.
     """
-    T_ns = T_mocap[[1, 2, 0, 3], :]
+    T_ns = T_mocap[:, [1, 2, 0, 3]]
     T_ns[:, [0, 2]] *= -1
     return T_ns[:3, :]
