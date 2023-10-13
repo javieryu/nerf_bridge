@@ -28,7 +28,7 @@ class ROSDataParserConfig(DataParserConfig):
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     aabb_scale: float = 2.0
-    """ SceneBox aabb scale."""
+    """ SceneBox aabb scene side L = [-scale, scale]"""
 
 
 @dataclass
