@@ -17,7 +17,7 @@ import torch
 from torch.utils.data.dataloader import DataLoader
 
 import nerfbridge.pose_utils as pose_utils
-from nerfbridge.ros_dataset import ROSDataset
+from nerfbridge.ros_dataset import ROSDataset, ROSDepthDataset
 
 import rclpy
 from sensor_msgs.msg import Image
@@ -97,6 +97,12 @@ class ROSDataloader(DataLoader):
             "image_idx": self.dataset.image_indices,
         }
 
+        # Flag for depth training, add depth tensor to data.
+        self.listen_depth = False
+        if isinstance(self.dataset, ROSDepthDataset):
+            self.data_dict["depth_image"] = self.dataset.depth_tensor
+            self.listen_depth = True
+
         super().__init__(dataset=dataset, **kwargs)
 
         self.bridge = CvBridge()
@@ -107,31 +113,43 @@ class ROSDataloader(DataLoader):
         self.node = rclpy.create_node("nerf_bridge_node")
 
         # Setting up ROS2 message_filter TimeSynchronzier
-        self.image_sub = Subscriber(
-            self.node,
-            Image,
-            self.dataset.image_topic_name,
+        self.subs = []
+        self.subs.append(
+            Subscriber(
+                self.node,
+                Image,
+                self.dataset.image_topic_name,
+            )
         )
 
         if slam_method == "cuvslam":
-            self.pose_sub = Subscriber(
-                self.node, Odometry, self.dataset.pose_topic_name
+            self.subs.append(
+                Subscriber(self.node, Odometry, self.dataset.pose_topic_name)
             )
         elif slam_method == "orbslam3":
-            self.pose_sub = Subscriber(
-                self.node, PoseStamped, self.dataset.pose_topic_name
+            self.subs.append(
+                Subscriber(self.node, PoseStamped, self.dataset.pose_topic_name)
             )
         else:
-            raise NameError("Unsupported SLAM algorithm!")
+            raise NameError(
+                "Unsupported SLAM algorithm. Must be one of {cuvslam, orbslam3}"
+            )
+
+        if self.listen_depth:
+            self.subs.append(
+                Subscriber(self.node, Image, self.dataset.depth_topic_name)
+            )
 
         if topic_sync == "approx":
-            self.ts = ApproximateTimeSynchronizer(
-                [self.image_sub, self.pose_sub], 10, topic_slop
+            self.ts = ApproximateTimeSynchronizer(self.subs, 10, topic_slop)
+        elif topic_sync == "exact":
+            self.ts = TimeSynchronizer(self.subs, 10)
+        else:
+            raise NameError(
+                "Unsupported topic sync method. Must be one of {approx, exact}."
             )
-        if topic_sync == "exact":
-            self.ts = TimeSynchronizer([self.image_sub, self.pose_sub], 10)
 
-        self.ts.registerCallback(self.ts_image_pose_callback)
+        self.ts.registerCallback(self.ts_callback)
 
         # Start a thread for processing the callbacks
         self.ros_thread = threading.Thread(
@@ -146,45 +164,75 @@ class ROSDataloader(DataLoader):
         """
         return self.current_idx >= (num_to_start - 1)
 
-    def ts_image_pose_callback(self, image: Image, pose: PoseStamped | Odometry):
-        """
-        The callback triggered when time synchronized image and pose messages
-        are published on the topics specifed in the config JSON passed to
-        the ROSDataParser.
-        """
+    def ts_callback(self, *args):
         now = time.perf_counter()
         if (
             now - self.last_update_t > self.update_period
             and self.current_idx < self.num_images
         ):
-            # ----------------- Handling the IMAGE ----------------
-            # Load the image message directly into the torch
-            im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
-            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
+            # Process RGB and Pose
+            self.image_callback(args[0])
+            self.pose_callback(args[1])
 
-            # COPY the image data into the data tensor
-            self.dataset.image_tensor[self.current_idx] = im_tensor
-
-            # ----------------- Handling the POSE ----------------
-            if self.slam_method == "cuvslam":
-                # Odometry Message
-                hom_pose = pose_utils.ros_pose_to_homogenous(pose.pose)
-                c2w = pose_utils.cuvslam_to_nerfstudio(hom_pose)
-            elif self.slam_method == "orbslam3":
-                # PoseStamped Message
-                hom_pose = pose_utils.ros_pose_to_homogenous(pose)
-                c2w = pose_utils.orbslam3_to_nerfstudio(hom_pose)
-            else:
-                raise NameError("Unknown SLAM Method!")
-
-            device = self.dataset.cameras.device
-            self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w.to(device)
+            # Process Depth if using depth training
+            if self.listen_depth:
+                self.depth_callback(args[2])
 
             self.dataset.updated_indices.append(self.current_idx)
-
             self.updated = True
             self.current_idx += 1
             self.last_update_t = now
+
+    def image_callback(self, image: Image):
+        """
+        Callback for processing RGB Image Messages, and adding them to the
+        dataset for training.
+        """
+        # Load the image message directly into the torch
+        im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+        im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
+
+        # COPY the image data into the data tensor
+        self.dataset.image_tensor[self.current_idx] = im_tensor
+
+    def pose_callback(self, pose: PoseStamped | Odometry):
+        """
+        Callback for Pose messages. Extracts pose, converts it to Nerfstudio coordinate
+        convention, and inserts it into the Cameras object.
+        """
+        if self.slam_method == "cuvslam":
+            # Odometry Message
+            hom_pose = pose_utils.ros_pose_to_homogenous(pose.pose)
+            c2w = pose_utils.cuvslam_to_nerfstudio(hom_pose)
+        elif self.slam_method == "orbslam3":
+            # PoseStamped Message
+            hom_pose = pose_utils.ros_pose_to_homogenous(pose)
+            c2w = pose_utils.orbslam3_to_nerfstudio(hom_pose)
+        else:
+            raise NameError("Unknown SLAM Method!")
+
+        # Scale Pose to
+        c2w[:3, 3] *= self.dataset.scale_factor
+
+        # Insert in Cameras
+        device = self.dataset.cameras.device
+        self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w.to(device)
+
+    def depth_callback(self, depth: Image):
+        """
+        Callback for processing Depth Image messages. Similar to RGB image handling,
+        but also rescales the depth to the appropriate value.
+        """
+        depth_cv = self.bridge.imgmsg_to_cv2(depth, depth.encoding)
+        depth_tensor = torch.from_numpy(depth_cv.astype("float32")).to(
+            dtype=torch.float32
+        )
+
+        aggregate_scale = self.dataset.scale_factor * self.dataset.depth_scale_factor
+
+        self.dataset.depth_tensor[self.current_idx] = (
+            depth_tensor.unsqueeze(-1) * aggregate_scale
+        )
 
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)

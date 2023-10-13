@@ -7,7 +7,6 @@ from typing_extensions import Literal
 
 from rich.console import Console
 
-from nerfstudio.utils.decorators import check_viewer_enabled
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
 
 from nerfbridge.ros_dataset import ROSDataset
@@ -44,8 +43,6 @@ class ROSTrainer(Trainer):
         Runs the Trainer setup, and then waits until at least one image-pose
         pair is successfully streamed from ROS before allowing training to proceed.
         """
-        # This gets called in the script that launches the training.
-        # In this case ns_ros/ros_train.py
         super().setup(test_mode=test_mode)
         start = time.perf_counter()
 
