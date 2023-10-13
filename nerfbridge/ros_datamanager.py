@@ -3,11 +3,17 @@ A datamanager for the NerfBridge.
 """
 
 from dataclasses import dataclass, field
-from typing import Type, Dict, Tuple
+from typing import Type, Dict, Tuple, Generic, cast, get_origin, get_args
+from typing_extensions import TypeVar
+from functools import cached_property
+from nerfstudio.utils.misc import get_orig_class
 
 from rich.console import Console
 
-from nerfstudio.data.datamanagers import base_datamanager
+from nerfstudio.data.datamanagers.base_datamanager import (
+    VanillaDataManager,
+    VanillaDataManagerConfig,
+)
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.cameras.rays import RayBundle
 
@@ -15,12 +21,14 @@ from nerfbridge.ros_dataset import ROSDataset
 from nerfbridge.ros_dataloader import ROSDataloader
 from nerfbridge.ros_dataparser import ROSDataParserConfig
 
+import pdb
+
 
 CONSOLE = Console(width=120)
 
 
 @dataclass
-class ROSDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
+class ROSDataManagerConfig(VanillaDataManagerConfig):
     """A ROS datamanager that handles a streaming dataloader."""
 
     _target: Type = field(default_factory=lambda: ROSDataManager)
@@ -40,8 +48,11 @@ class ROSDataManagerConfig(base_datamanager.VanillaDataManagerConfig):
     """ Slop in seconds for approximate time synchronization."""
 
 
+TDataset = TypeVar("TDataset", bound=ROSDataset, default=ROSDataset)
+
+
 class ROSDataManager(
-    base_datamanager.VanillaDataManager
+    VanillaDataManager, Generic[TDataset]
 ):  # pylint: disable=abstract-method
     """Essentially the VannilaDataManager from Nerfstudio except that the
     typical dataloader for training images is replaced with one that streams
@@ -58,9 +69,23 @@ class ROSDataManager(
         self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
             split="train", num_images=self.config.num_training_images
         )
-        return ROSDataset(
+        return self.dataset_type(
             dataparser_outputs=self.train_dataparser_outputs, device=self.device
         )
+
+    @cached_property
+    def dataset_type(self) -> Type[TDataset]:
+        """
+        Returns the dataset type passed as the generic argument. 
+        
+        NOTE: Hacked from the Vanilla DataManager implementation.
+        """
+        default: Type[TDataset] = cast(TDataset, TDataset.__default__)  # type: ignore
+        orig_class: Type[ROSDataManager] = get_orig_class(self, default=None)  # type: ignore
+        if type(self) is ROSDataManager and orig_class is None:
+            return default
+        if orig_class is not None and get_origin(orig_class) is ROSDataManager:
+            return get_args(orig_class)[0]
 
     def setup_train(self):
         assert self.train_dataset is not None

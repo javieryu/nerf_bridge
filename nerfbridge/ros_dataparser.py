@@ -108,6 +108,7 @@ class ROSDataParser(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        # Create a new dictionary with the correct keys
         image_filenames = []
         metadata = {
             "image_topic": meta["image_topic"],
@@ -116,6 +117,11 @@ class ROSDataParser(DataParser):
             "image_height": image_height,
             "image_width": image_width,
         }
+
+        # Only used if depth training is enabled
+        if "depth_topic" in meta:
+            metadata["depth_topic"] = meta["depth_topic"]
+            metadata["depth_scale_factor"] = meta["depth_scale_factor"]
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,  # This is empty
