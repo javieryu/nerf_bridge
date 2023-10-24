@@ -18,10 +18,12 @@ from torch.utils.data.dataloader import DataLoader
 
 import nerfbridge.pose_utils as pose_utils
 from nerfbridge.ros_dataset import ROSDataset, ROSDepthDataset
+from nerfstudio.utils import writer
 
 import rclpy
 from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
 from cv_bridge import CvBridge
@@ -114,6 +116,8 @@ class ROSDataloader(DataLoader):
         rclpy.init()
         self.node = rclpy.create_node("nerf_bridge_node")
 
+        self.health_pub = self.node.create_publisher(String, "dataloader_health", 10)
+
         # Setting up ROS2 message_filter TimeSynchronzier
         self.subs = []
         if self.use_compressed_rgb:
@@ -156,9 +160,9 @@ class ROSDataloader(DataLoader):
             )
 
         if topic_sync == "approx":
-            self.ts = ApproximateTimeSynchronizer(self.subs, 10, topic_slop)
+            self.ts = ApproximateTimeSynchronizer(self.subs, 40, topic_slop)
         elif topic_sync == "exact":
-            self.ts = TimeSynchronizer(self.subs, 10)
+            self.ts = TimeSynchronizer(self.subs, 40)
         else:
             raise NameError(
                 "Unsupported topic sync method. Must be one of {approx, exact}."
@@ -192,6 +196,8 @@ class ROSDataloader(DataLoader):
             # Process Depth if using depth training
             if self.listen_depth:
                 self.depth_callback(args[2])
+
+            self.health_pub.publish(String(data=f"Num Train Imgs {self.current_idx:04}, dT={now - self.last_update_t:0.4f}"))
 
             self.dataset.updated_indices.append(self.current_idx)
             self.updated = True

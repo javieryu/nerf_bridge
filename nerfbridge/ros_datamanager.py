@@ -7,6 +7,8 @@ from typing import Type, Dict, Tuple, Generic, cast, get_origin, get_args
 from typing_extensions import TypeVar
 from functools import cached_property
 from nerfstudio.utils.misc import get_orig_class
+from nerfstudio.utils import writer
+from nerfstudio.utils.writer import EventType
 
 from rich.console import Console
 
