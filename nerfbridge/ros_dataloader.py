@@ -14,6 +14,7 @@ from typing import Union
 
 from rich.console import Console
 import torch
+from torchvision.transforms import Resize
 from torch.utils.data.dataloader import DataLoader
 
 import nerfbridge.pose_utils as pose_utils
@@ -104,6 +105,8 @@ class ROSDataloader(DataLoader):
         self.listen_depth = False
         if isinstance(self.dataset, ROSDepthDataset):
             self.data_dict["depth_image"] = self.dataset.depth_tensor
+            # For resizing depth image to match color image.
+            self.depth_transform = Resize((self.H, self.W))
             self.listen_depth = True
 
         super().__init__(dataset=dataset, **kwargs)
@@ -197,7 +200,11 @@ class ROSDataloader(DataLoader):
             if self.listen_depth:
                 self.depth_callback(args[2])
 
-            self.health_pub.publish(String(data=f"Num Train Imgs {self.current_idx:04}, dT={now - self.last_update_t:0.4f}"))
+            self.health_pub.publish(
+                String(
+                    data=f"Num Train Imgs {self.current_idx:04}, dT={now - self.last_update_t:0.4f}"
+                )
+            )
 
             self.dataset.updated_indices.append(self.current_idx)
             self.updated = True
@@ -216,6 +223,7 @@ class ROSDataloader(DataLoader):
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
 
         im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
+        im_tensor = torch.flip(im_tensor, [-1])
 
         # COPY the image data into the data tensor
         self.dataset.image_tensor[self.current_idx] = im_tensor
@@ -257,6 +265,7 @@ class ROSDataloader(DataLoader):
             dtype=torch.float32
         )
 
+        # depth_resized = self.depth_transform(depth_tensor)
         aggregate_scale = self.dataset.scale_factor * self.dataset.depth_scale_factor
 
         self.dataset.depth_tensor[self.current_idx] = (

@@ -115,7 +115,7 @@ DepthNerfBridgeDemo = MethodSpecification(
                 pixel_sampler=PairPixelSamplerConfig(),
                 dataparser=ROSDataParserConfig(
                     scale_factor=0.1,
-                    aabb_scale=2.0,
+                    aabb_scale=4.0,
                 ),
                 train_num_rays_per_batch=4096,
                 eval_num_rays_per_batch=4096,
@@ -124,8 +124,8 @@ DepthNerfBridgeDemo = MethodSpecification(
                     optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
                 ),
                 use_compressed_rgb=True,
-                topic_slop=0.075,
-                slam_method="mocap",
+                topic_slop=0.3,
+                slam_method="cuvslam",
                 data_update_freq=5.0,
                 num_training_images=500
             ),
@@ -175,7 +175,7 @@ NerfBridgeDemo = MethodSpecification(
                     optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
                 ),
                 use_compressed_rgb=True,
-                topic_slop=0.08,
+                topic_slop=0.3,
                 slam_method="mocap",
                 data_update_freq=5.0,
                 num_training_images=500
