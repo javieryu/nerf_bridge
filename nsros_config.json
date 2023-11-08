@@ -1,0 +1,17 @@
+{
+	"fx": 615.94384765625,
+	"fy": 616.453674316406,
+	"cx": 320.379058837891,
+	"cy": 247.025238037109,
+	"k1": 0,
+	"k2": 0,
+	"k3": 0,
+	"p1": 0,
+	"p2": 0,
+	"H": 480,
+	"W": 640,
+	"image_topic": "/camera/color/image_raw",
+	"pose_topic": "/orb_slam3/camera_pose",
+	"depth_topic": "/camera/aligned_depth_to_color/image_raw",
+	"depth_scale_factor": 1000.0
+}
