@@ -1,0 +1,17 @@
+[project]
+name = "nsros"
+version = "0.1"
+
+dependencies = [
+	"nerfstudio==0.3.3"
+]
+
+[tool.setuptools.packages.find]
+include = ["nsros*"]
+
+[tool.pyright]
+extraPaths = ["nsros"]
+
+[project.entry-points.'nerfstudio.method_configs']
+ros-nerfacto = 'nsros.method_configs:ros_nerfacto'
+ros-depth-nerfacto = 'nsros.method_configs:ros-depth-nerfacto'
