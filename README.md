@@ -4,7 +4,7 @@
 For a complete video see [https://youtu.be/EH0SLn-RcDg](https://youtu.be/EH0SLn-RcDg).
 
 ## Info
-This fork of the NeRFBridge project aims to implement image and pose streaming to train NeRFs using the Depth Nerfacto method in NerfStudio.
+This fork of the NeRFBridge project aims to implement image and pose streaming to train NeRFs using the Depth Nerfacto method in NerfStudio using ROS1.
 The instructions assume that ROS1 Noetic and all necessary packages for streaming images and poses are installed already.
 
 ## Introduction
