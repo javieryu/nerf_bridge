@@ -17,12 +17,12 @@ The core functionality of NerfBridge is fairly simple. At runtime the user provi
 - A camera that is compatible with ROS Noetic
 - Some means by which to estimate pose of the camera (SLAM, motion capture system, etc)
 
+## Installation  
+The first step to getting the NerfBridge working is to install Nerfstudio using the [directions](https://docs.nerf.studio/en/latest/quickstart/installation.html) their documentation. We provide Nerfstudio as a submodule (don't forget to [initialize the submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) after cloning or forking this repo) to this repository so that the version that we have tested this repository with is specified. 
 
-## Installation 
-The first step to getting NerfBridge working is to install just the dependencies for Nerfstudio using the [installation guide](https://docs.nerf.studio/en/latest/quickstart/installation.html). Then once the dependencies are installed, install Nerfbridge (and Nerfstudio v0.3.3) using ``pip install -e .`` in the root of this repository.
+After Nerfstudio and it's dependencies are installed, the only remaining dependency should be ``rospkg``, which can be easily installed using ``pip install rospkg``.
 
-This will add NerfBridge to the list of available methods for on the Nerfstudio CLI. To test if NerfBridge is being registered by the CLI after installation run ``ns-train -h``, and if installation was successful then you should see ros-nerfacto in the list of available methods.
-
+These instructions assume that ROS is already installed on the machine that you will be training on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
 
 ## Running and Configuring NerfBridge
 The design and configuration of NerfBridge is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs online with ROS.
@@ -42,13 +42,13 @@ Configuring the functionality of NerfBridge is done through the Nerfstudio confi
 
 To launch the NerfBridge (which also starts Nerfstudio) use the command command below.
 ```
-ns-train ros-nerfacto --data /path/to/config.json [OPTIONS]
+python ros_train.py ros_nerfacto --data /path/to/config.json [OPTIONS]
 ```
 After initializing the Nerfstudio, NerfBridge will show a prompt that it is waiting to receive the appropriate number of images before training starts. When that goal has been reached another prompt will indicate the beginning of training, and then its off to the races!
 
 To set the options above replace ``[OPTIONS]`` with the option name and value. For example:
 ```
-ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
+python ros_train.py ros_nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
 ```
 will set the data update frequency to 1 Hz.
 
