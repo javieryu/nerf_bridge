@@ -1,8 +1,11 @@
 # NerfBridge
 ![](indoor.gif)
+
 For a complete video see [https://youtu.be/EH0SLn-RcDg](https://youtu.be/EH0SLn-RcDg).
+
 ## Introduction
 This package implements a bridge between the [Robot Operating System](https://www.ros.org/) (ROS), and the excellent [Nerfstudio](https://docs.nerf.studio/en/latest/) package. Our goal with this package, the NerfBridge Bridge, is to provide a minimal and flexible starting point for robotics researchers to explore possible applications of neural implicit representations.  
+
 In our experience, when it comes to software in robotics, solutions are rarely one size fits all. To that end we cannot provide meticulous installation and implementation instructions that we will be sure will work for every robotics platform. Rather we will try to outline the core components that you will need to get ROS working with Nerfstudio, and hopefully that will get you started on the road to creating some cool NeRFs with your robot.
 The core functionality of NerfBridge is fairly simple. At runtime the user provides some basic information about the camera sensor, the name of a ROS Topic that publishes images, and the name of a ROS Topic that publishes a camera pose that corresponds to each image. Using this information NerfBridge starts an instance of Nerfstudio, initializes a ROS Node that listens to the image and pose topics, and pre-allocates two PyTorch Tensors of fixed size (one for the images and one for the corresponding poses). As training commences, images and poses that are received by the NerfBridge node are copied into the pre-allocated data tensors, and in turn pixels are sampled from these data tensors and used to create a NeRF with Nerfstudio. This process continues until the limit of the pre-allocated tensors is reached at which point the NerfBridge stops copying in new images, and training proceeds on the fixed data until completion.
 ## Requirements
@@ -11,18 +14,9 @@ The core functionality of NerfBridge is fairly simple. At runtime the user provi
 - ROS Noetic installed on your linux machine
 - A camera that is compatible with ROS Noetic
 - Some means by which to estimate pose of the camera (SLAM, motion capture system, etc)
-
-## Installation  
-The first step to getting the NerfBridge working is to install Nerfstudio using the [directions](https://docs.nerf.studio/en/latest/quickstart/installation.html) their documentation. We provide Nerfstudio as a submodule (don't forget to [initialize the submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) after cloning or forking this repo) to this repository so that the version that we have tested this repository with is specified. 
-
 ## Installation 
 The first step to getting NerfBridge working is to install just the dependencies for Nerfstudio using the [installation guide](https://docs.nerf.studio/en/latest/quickstart/installation.html). Then once the dependencies are installed, install Nerfbridge (and Nerfstudio v0.3.3) using ``pip install -e .`` in the root of this repository.
-
 This will add NerfBridge to the list of available methods for on the Nerfstudio CLI. To test if NerfBridge is being registered by the CLI after installation run ``ns-train -h``, and if installation was successful then you should see ros-nerfacto in the list of available methods.
-After Nerfstudio and it's dependencies are installed, the only remaining dependency should be ``rospkg``, which can be easily installed using ``pip install rospkg``.
-
-These instructions assume that ROS is already installed on the machine that you will be training on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
-
 ## Running and Configuring NerfBridge
 The design and configuration of NerfBridge is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs online with ROS.
 Nerfstudio needs three key sources of data to train a NeRF: (1) color images, (2) camera poses corresponding to the color images, and (3) a camera model matching that of the camera that is being used. NerfBridge expects that (1) and (2) are published to corresponding ROS Image and StampedPose topics, and that the names of these topics as well as (3) are provided in a JSON configuration file when the bridge is launched. A sample NerfBridge configuration JSON is provided in the root of the repository, ``nsros_config_sample.json``. We recommend using the [``camera_calibration``](http://wiki.ros.org/camera_calibration) package to determine the camera model parameters. 
@@ -35,21 +29,16 @@ Configuring the functionality of NerfBridge is done through the Nerfstudio confi
 | ``pipeline.datamanager.publish_training_posearray`` | Publish the poses of images that were added to the training dataset as a PoseArray so that they can be visualized in RViz. This essentially circumvents the problems with dynamically updating the camera poses in the Nerfstudio Viewer. | True |
 | ``pipeline.datamanager.data_update_freq`` | Frequency, in Hz, that images are added to the training set (allows for sub-sampling of the ROS stream). | 5 (Hz) |
 | ``pipeline.datamanager.num_training_images`` | The final size of the training dataset. | 500 |
-
 To launch the NerfBridge (which also starts Nerfstudio) use the command command below.
 ```
 ns-train ros-nerfacto --data /path/to/config.json [OPTIONS]
-python ros_train.py ros_nerfacto --data /path/to/config.json [OPTIONS]
 ```
 After initializing the Nerfstudio, NerfBridge will show a prompt that it is waiting to receive the appropriate number of images before training starts. When that goal has been reached another prompt will indicate the beginning of training, and then its off to the races!
-
 To set the options above replace ``[OPTIONS]`` with the option name and value. For example:
 ```
 ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
-python ros_train.py ros_nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
 ```
 will set the data update frequency to 1 Hz.
-
 ## Our Testing Setup
 The following is a description of the testing setup that we at the Stanford Multi-robot Systems Lab have been using to train NeRFs online with NerfBridge.
 ### Camera
