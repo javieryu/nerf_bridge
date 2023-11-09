@@ -52,7 +52,7 @@ After initializing the Nerfstudio, NerfBridge will show a prompt that it is wait
 
 To set the options above replace ``[OPTIONS]`` with the option name and value. For example:
 ```
-python ros_train.py ros_nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
+ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
 ```
 will set the data update frequency to 1 Hz.
 
