@@ -9,8 +9,10 @@ from rich.console import Console
 
 from nerfstudio.utils.decorators import check_viewer_enabled
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
+from nerfstudio.utils.misc import step_check
 
 from nsros.ros_dataset import ROSDataset
+
 
 CONSOLE = Console(width=120)
 
@@ -24,6 +26,7 @@ class ROSTrainerConfig(TrainerConfig):
     """ Number of images that must be recieved before training can start. """
     draw_training_images: bool = False
     """ Whether or not to draw the training images in the viewer. """
+
 
 
 class ROSTrainer(Trainer):
@@ -45,8 +48,7 @@ class ROSTrainer(Trainer):
         Runs the Trainer setup, and then waits until at least one image-pose
         pair is successfully streamed from ROS before allowing training to proceed.
         """
-        # This gets called in the script that launches the training.
-        # In this case ns_ros/ros_train.py
+   
         super().setup(test_mode=test_mode)
         start = time.perf_counter()
 
@@ -84,7 +86,12 @@ class ROSTrainer(Trainer):
             step: current train step
         """
         super()._update_viewer_state(step)
-        #
+        
+        
+        if step_check(step, self.config.steps_per_save):
+            super().save_checkpoint(step)
+   
+        
         # # Clear any old cameras!
         if self.config.draw_training_images:
             if self.first_update:
