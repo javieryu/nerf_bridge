@@ -3,10 +3,6 @@
 
 For a complete video see [https://youtu.be/EH0SLn-RcDg](https://youtu.be/EH0SLn-RcDg).
 
-## Info
-This fork of the NeRFBridge project aims to implement image and pose streaming to train NeRFs using the Depth Nerfacto method in NerfStudio using ROS1.
-The instructions assume that ROS1 Noetic and all necessary packages for streaming images and poses are installed already.
-
 ## Introduction
 This package implements a bridge between the [Robot Operating System](https://www.ros.org/) (ROS), and the excellent [Nerfstudio](https://docs.nerf.studio/en/latest/) package. Our goal with this package, the NerfBridge Bridge, is to provide a minimal and flexible starting point for robotics researchers to explore possible applications of neural implicit representations.  
 
