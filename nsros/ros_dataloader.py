@@ -225,7 +225,46 @@ class ROSDataloader(DataLoader):
             self.updated = True
             self.current_idx += 1
             self.last_update_t = now
-    
+
+    def ts_image_pose_callback(self, image: Image, pose: PoseStamped):
+        """
+        The callback triggered when time synchronized image and pose messages
+        are published on the topics specifed in the config JSON passed to
+        the ROSDataParser.
+        """
+        now = time.perf_counter()
+        if (
+            now - self.last_update_t > self.update_period
+            and self.current_idx < self.num_images
+        ):
+            # ----------------- Handling the IMAGE ----------------
+            # Load the image message directly into the torch
+            im_tensor = torch.frombuffer(image.data, dtype=torch.uint8).reshape(
+                self.H, self.W, -1
+            )
+            im_tensor = im_tensor.to(dtype=torch.float32) / 255.0
+
+
+            # COPY the image data into the data tensor
+            self.dataset.image_tensor[self.current_idx] = im_tensor
+
+            # ----------------- Handling the POSE ----------------
+            c2w = ros_pose_to_nerfstudio(pose, static_transform=self.coord_st)
+            device = self.dataset.cameras.device
+            c2w = c2w.to(device)
+            self.dataset.cameras.camera_to_worlds[self.current_idx] = c2w
+
+            if self.publish_posearray:
+                self.poselist.append(pose.pose)
+                pa = PoseArray(poses=self.poselist)
+                pa.header.frame_id = "map"
+                self.posearray_pub.publish(pa)
+
+            self.dataset.updated_indices.append(self.current_idx)
+
+            self.updated = True
+            self.current_idx += 1
+            self.last_update_t = now
  
 
     def __getitem__(self, idx):
