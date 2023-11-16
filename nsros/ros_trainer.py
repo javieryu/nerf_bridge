@@ -87,7 +87,7 @@ class ROSTrainer(Trainer):
         """
         super()._update_viewer_state(step)
         
-        
+        # saving checkpoints every 1000 steps
         if step_check(step, self.config.steps_per_save):
             super().save_checkpoint(step)
    
