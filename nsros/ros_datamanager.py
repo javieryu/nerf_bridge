@@ -43,8 +43,7 @@ class ROSDataManagerConfig(VanillaDataManagerConfig):
     num_training_images: int = 500
     """ Number of images to train on (for dataset tensor pre-allocation). """
     topic_slop: float = 0.05
-    """ something something comment """
-    steps_per_sav: int = 80
+
 
 TDataset = TypeVar("TDataset", bound=ROSDataset, default=ROSDataset)
 
