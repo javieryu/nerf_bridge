@@ -13,5 +13,5 @@ include = ["nsros*"]
 extraPaths = ["nsros"]
 
 [project.entry-points.'nerfstudio.method_configs']
-ros-nerfacto = 'nsros.method_configs:ros_nerfacto'
-ros-depth-nerfacto = 'nsros.method_configs:ros-depth-nerfacto'
+ros-nerfacto = 'nsros.method_configs:RosNerfacto'
+ros-depth-nerfacto = 'nsros.method_configs:RosDepthNerfacto'
