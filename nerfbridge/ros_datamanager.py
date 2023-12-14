@@ -7,8 +7,6 @@ from typing import Type, Dict, Tuple, Generic, cast, get_origin, get_args
 from typing_extensions import TypeVar
 from functools import cached_property
 from nerfstudio.utils.misc import get_orig_class
-from nerfstudio.utils import writer
-from nerfstudio.utils.writer import EventType
 
 from rich.console import Console
 
@@ -22,8 +20,6 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfbridge.ros_dataset import ROSDataset
 from nerfbridge.ros_dataloader import ROSDataloader
 from nerfbridge.ros_dataparser import ROSDataParserConfig
-
-import pdb
 
 
 CONSOLE = Console(width=120)

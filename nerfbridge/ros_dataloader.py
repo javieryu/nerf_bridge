@@ -19,7 +19,6 @@ from torch.utils.data.dataloader import DataLoader
 
 import nerfbridge.pose_utils as pose_utils
 from nerfbridge.ros_dataset import ROSDataset, ROSDepthDataset
-from nerfstudio.utils import writer
 
 import rclpy
 from sensor_msgs.msg import Image, CompressedImage
@@ -28,8 +27,6 @@ from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
 from cv_bridge import CvBridge
-
-import pdb
 
 CONSOLE = Console(width=120)
 

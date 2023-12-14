@@ -94,5 +94,7 @@ class ROSTrainer(Trainer):
                     camera_json = self.dataset.cameras.to_json(
                         camera_idx=idx, image=bgr, max_size=100
                     )
-                    self.viewer_state.viser_server.add_dataset_image(idx=f"{idx:06d}", json=camera_json)
+                    self.viewer_state.viser_server.add_dataset_image(
+                        idx=f"{idx:06d}", json=camera_json
+                    )
                     self.cameras_drawn.append(idx)
