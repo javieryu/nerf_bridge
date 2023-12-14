@@ -12,6 +12,7 @@ from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
+from nerfstudio.model_components.losses import DepthLossType
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 from nerfbridge.ros_datamanager import ROSDataManagerConfig, ROSDataManager

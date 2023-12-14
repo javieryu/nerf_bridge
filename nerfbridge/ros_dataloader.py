@@ -14,6 +14,7 @@ from typing import Union
 
 from rich.console import Console
 import torch
+from torchvision.transforms import Resize
 from torch.utils.data.dataloader import DataLoader
 
 import nerfbridge.pose_utils as pose_utils
@@ -22,11 +23,10 @@ from nerfbridge.ros_dataset import ROSDataset, ROSDepthDataset
 import rclpy
 from sensor_msgs.msg import Image, CompressedImage
 from geometry_msgs.msg import PoseStamped
+from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 from message_filters import ApproximateTimeSynchronizer, TimeSynchronizer, Subscriber
 from cv_bridge import CvBridge
-
-import pdb
 
 CONSOLE = Console(width=120)
 
@@ -102,6 +102,8 @@ class ROSDataloader(DataLoader):
         self.listen_depth = False
         if isinstance(self.dataset, ROSDepthDataset):
             self.data_dict["depth_image"] = self.dataset.depth_tensor
+            # For resizing depth image to match color image.
+            self.depth_transform = Resize((self.H, self.W))
             self.listen_depth = True
 
         super().__init__(dataset=dataset, **kwargs)
@@ -113,6 +115,8 @@ class ROSDataloader(DataLoader):
         # Initializing ROS2
         rclpy.init()
         self.node = rclpy.create_node("nerf_bridge_node")
+
+        self.health_pub = self.node.create_publisher(String, "dataloader_health", 10)
 
         # Setting up ROS2 message_filter TimeSynchronzier
         self.subs = []
@@ -156,9 +160,9 @@ class ROSDataloader(DataLoader):
             )
 
         if topic_sync == "approx":
-            self.ts = ApproximateTimeSynchronizer(self.subs, 10, topic_slop)
+            self.ts = ApproximateTimeSynchronizer(self.subs, 40, topic_slop)
         elif topic_sync == "exact":
-            self.ts = TimeSynchronizer(self.subs, 10)
+            self.ts = TimeSynchronizer(self.subs, 40)
         else:
             raise NameError(
                 "Unsupported topic sync method. Must be one of {approx, exact}."
@@ -193,6 +197,12 @@ class ROSDataloader(DataLoader):
             if self.listen_depth:
                 self.depth_callback(args[2])
 
+            self.health_pub.publish(
+                String(
+                    data=f"Num Train Imgs {self.current_idx:04}, dT={now - self.last_update_t:0.4f}"
+                )
+            )
+
             self.dataset.updated_indices.append(self.current_idx)
             self.updated = True
             self.current_idx += 1
@@ -206,10 +216,12 @@ class ROSDataloader(DataLoader):
         # Load the image message directly into the torch
         if self.use_compressed_rgb:
             im_cv = self.bridge.compressed_imgmsg_to_cv2(image)
+            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
+            im_tensor = torch.flip(im_tensor, [-1])
         else:
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
-        im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
         # COPY the image data into the data tensor
         self.dataset.image_tensor[self.current_idx] = im_tensor
@@ -251,6 +263,7 @@ class ROSDataloader(DataLoader):
             dtype=torch.float32
         )
 
+        # depth_resized = self.depth_transform(depth_tensor)
         aggregate_scale = self.dataset.scale_factor * self.dataset.depth_scale_factor
 
         self.dataset.depth_tensor[self.current_idx] = (

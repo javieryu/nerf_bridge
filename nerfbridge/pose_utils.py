@@ -2,8 +2,6 @@ import torch
 from geometry_msgs.msg import Pose
 from scipy.spatial.transform import Rotation
 
-import pdb
-
 """
 Utilities for converting ROS2 pose messages to torch tensors, and for converting
 poses expressed in other coordinate systems to the Nerfstudio coordinate sytem.
@@ -57,11 +55,12 @@ def orbslam3_to_nerfstudio(T_orbslam3: torch.Tensor):
     T_ns[2, :] *= -1
     return T_ns[:3, :]
 
+
 def mocap_to_nerfstudio(T_mocap: torch.Tensor):
     """
     Converts a homogenous matrix 4x4 from the coordinate system used in mocap
     to the Nerfstudio camera coordinate system 3x4 matrix.
     """
-    T_ns = T_mocap[[1, 2, 0, 3], :]
+    T_ns = T_mocap[:, [1, 2, 0, 3]]
     T_ns[:, [0, 2]] *= -1
     return T_ns[:3, :]

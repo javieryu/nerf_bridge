@@ -21,8 +21,6 @@ from nerfbridge.ros_dataset import ROSDataset
 from nerfbridge.ros_dataloader import ROSDataloader
 from nerfbridge.ros_dataparser import ROSDataParserConfig
 
-import pdb
-
 
 CONSOLE = Console(width=120)
 
