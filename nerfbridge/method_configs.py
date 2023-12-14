@@ -108,14 +108,14 @@ DepthNerfBridgeDemo = MethodSpecification(
         max_num_iterations=30000,
         mixed_precision=True,
         draw_training_images=True,
-        msg_timeout=300.0,
+        msg_timeout=3000.0,
         pipeline=VanillaPipelineConfig(
             datamanager=ROSDataManagerConfig(
                 _target=ROSDataManager[ROSDepthDataset],
                 pixel_sampler=PairPixelSamplerConfig(),
                 dataparser=ROSDataParserConfig(
-                    scale_factor=0.1,
-                    aabb_scale=4.0,
+                    scale_factor=0.15,
+                    aabb_scale=2.0,
                 ),
                 train_num_rays_per_batch=4096,
                 eval_num_rays_per_batch=4096,
@@ -125,13 +125,13 @@ DepthNerfBridgeDemo = MethodSpecification(
                 ),
                 use_compressed_rgb=True,
                 topic_slop=0.3,
-                slam_method="cuvslam",
-                data_update_freq=5.0,
+                slam_method="mocap",
+                data_update_freq=8.0,
                 num_training_images=500
             ),
             model=DepthNerfactoModelConfig(
                 eval_num_rays_per_chunk=1 << 15,
-                depth_loss_mult=1.0,
+                depth_loss_mult=0.1,
                 depth_sigma=0.07,
                 depth_loss_type=DepthLossType.DS_NERF
             ),
@@ -160,12 +160,13 @@ NerfBridgeDemo = MethodSpecification(
         max_num_iterations=30000,
         mixed_precision=True,
         draw_training_images=True,
+        msg_timeout=1000.0,
         pipeline=VanillaPipelineConfig(
             datamanager=ROSDataManagerConfig(
                 _target=ROSDataManager[ROSDataset],
                 pixel_sampler=PairPixelSamplerConfig(),
                 dataparser=ROSDataParserConfig(
-                    scale_factor=0.1,
+                    scale_factor=0.15,
                     aabb_scale=2.0,
                 ),
                 train_num_rays_per_batch=4096,
@@ -177,7 +178,7 @@ NerfBridgeDemo = MethodSpecification(
                 use_compressed_rgb=True,
                 topic_slop=0.3,
                 slam_method="mocap",
-                data_update_freq=5.0,
+                data_update_freq=8.0,
                 num_training_images=500
             ),
             model=NerfactoModelConfig(
