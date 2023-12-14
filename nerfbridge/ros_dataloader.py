@@ -219,11 +219,12 @@ class ROSDataloader(DataLoader):
         # Load the image message directly into the torch
         if self.use_compressed_rgb:
             im_cv = self.bridge.compressed_imgmsg_to_cv2(image)
+            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
+            im_tensor = torch.flip(im_tensor, [-1])
         else:
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
+            im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
-        im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
-        im_tensor = torch.flip(im_tensor, [-1])
 
         # COPY the image data into the data tensor
         self.dataset.image_tensor[self.current_idx] = im_tensor
