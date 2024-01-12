@@ -54,6 +54,40 @@ ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_up
 ```
 will set the data update frequency to 1 Hz.
 
+## NerfBridge Tutorial on a sample ROS Bag
+The script ``scripts/download_data.py`` can be used to download one a sample ROS Bag for testing that a NerfBridge installation is working. The download script is interactive, and can be run with the following commands from the root of the NerfBridge repo:
+```
+cd scripts
+python download_data.py --path /desired/download/location
+```
+where path specifies the directory to which you would like to download the sample ROS bag. Leaving out the ``--path`` argument will download the ROS Bag to a default location inside of the NerfBridge repo. For the following tutorial use the download script to download the ``desk`` ROS bag.
+
+1. Open two terminals, and in one of them (Terminal 1) execute the following commands to prepare a ROS bag to play.
+```
+cd /path/to/desk/rosbag
+
+ros2 bag play desk --start-paused
+```
+This prepares the ROS bag for playing, but does not automatically start it (return to this terminal in Step 3).
+
+2. In the second terminal (Terminal 2), start the ROS bag with the following commands.
+```
+cd /path/to/nerfbridge/repo
+
+conda activate nerfbridge 
+# replacing nerfbridge with the appropriate name of your own conda env from the install process
+# or skip this step if you opted to install without conda
+
+ns-train ros-depth-nerfacto --data configs/desk.json --pipeline.datamanager.use-compressed-rgb True
+```
+Here the ``--data`` argument specifies the configuration data file (topic names etc), and the ``--pipeline.datamanager...`` argument specifies that NerfBridge should expect CompressedImages from the RGB image topic. You should see a message in green that ``(NerfBridge) Waiting for for image streaming to begin ....``.
+
+3. Return to Terminal 1, and press the Space bar to start the ROS bag. Shortly you should see a green message ``(NerfBridge) Dataloader is successfully streaming images!``, and then the training statistics from NerfStudio should begin printing.
+
+4. Terminal 2 should also have printed a link to the Nerfstudio viewer. Follow the link and use the viewer to render views of the NeRF while it trains! Sometimes the viewer can have some latency so if nothing renders the wait a few seconds for it to populate.
+
+If you get to Step 4, and you see a desk with a monitor and laptop appear in the NeRF then your NerfBridge installation is working correctly! Any errors along the way mean that likely your installation is broken. 
+
 ## Our Setup
 The following is a description of the setup that we at the Stanford Multi-robot Systems Lab have been using to train NeRFs online with NerfBridge from images captured by a camera mounted to a quadrotor.
 
