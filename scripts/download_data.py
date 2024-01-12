@@ -8,16 +8,12 @@ CONSOLE_WIDTH = 100
 console = Console(width=CONSOLE_WIDTH)
 
 repo_dir = Path(__file__).parent.absolute().parent.absolute()
-download_default_dir = repo_dir / "data/"
+download_default_dir = repo_dir / "rosbags/"
 
 bags = {
     "desk": {
         "id": "1FT3lTKZxKd9z-7xzOmPu6JqmKj00rs49",
         "size": 1.85,
-    },
-    "test": {
-        "id": "1urrEoZHUwz3rSbutV6msF69Dtbq9Hk3R",
-        "size": 0.1,
     },
 }
 
@@ -43,7 +39,7 @@ if __name__ == "__main__":
         size = value["size"]
         total_size += size
         console.print(f"[red] {key} - {size} GB", justify="center")
-    console.print(f"[bold red] all - {total_size} GB", justify="center")
+    console.print(f"[bold red] all - {total_size:0.3f} GB", justify="center")
 
     choices = list(bags.keys())
     choices.append("all")
