@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Type
 from typing_extensions import Literal
@@ -8,8 +9,11 @@ from typing_extensions import Literal
 from rich.console import Console
 
 from nerfstudio.engine.trainer import Trainer, TrainerConfig
+from nerfstudio.engine.callbacks import TrainingCallbackAttributes
+from nerfstudio.utils import profiler, writer
 
 from nerfbridge.ros_dataset import ROSDataset
+from nerfbridge.ros_viewer import ROSViewer
 
 CONSOLE = Console(width=120)
 
@@ -21,8 +25,6 @@ class ROSTrainerConfig(TrainerConfig):
     """ How long to wait (seconds) for sufficient images to be received before training. """
     num_msgs_to_start: int = 3
     """ Number of images that must be recieved before training can start. """
-    draw_training_images: bool = False
-    """ Whether or not to draw the training images in the viewer. """
 
 
 class ROSTrainer(Trainer):
@@ -38,15 +40,80 @@ class ROSTrainer(Trainer):
         self.cameras_drawn = []
         self.num_msgs_to_start = config.num_msgs_to_start
 
-    def setup(self, test_mode: Literal["test", "val", "inference"] = "val"):
+    def setup(self, test_mode: Literal["test", "val", "inference"] = "val") -> None:
+        """Setup the Trainer by calling other setup functions.
+
+        Args:
+            test_mode:
+                'val': loads train/val datasets into memory
+                'test': loads train/test datasets into memory
+                'inference': does not load any dataset into memory
         """
-        Runs the Trainer setup, and then waits until at least one image-pose
-        pair is successfully streamed from ROS before allowing training to proceed.
-        """
-        super().setup(test_mode=test_mode)
-        start = time.perf_counter()
+        self.pipeline = self.config.pipeline.setup(
+            device=self.device,
+            test_mode=test_mode,
+            world_size=self.world_size,
+            local_rank=self.local_rank,
+            grad_scaler=self.grad_scaler,
+        )
+        self.optimizers = self.setup_optimizers()
+
+        # set up viewer if enabled
+        viewer_log_path = self.base_dir / self.config.viewer.relative_log_filename
+        self.viewer_state, banner_messages = None, None
+        if self.config.is_viewer_legacy_enabled() and self.local_rank == 0:
+            CONSOLE.print(
+                "[bold red] (NerfBridge) Legacy Viewer is not supported by NerfBridge!"
+            )
+        if self.config.is_viewer_enabled() and self.local_rank == 0:
+            datapath = self.config.data
+            if datapath is None:
+                datapath = self.base_dir
+            self.viewer_state = ROSViewer(
+                self.config.viewer,
+                log_filename=viewer_log_path,
+                datapath=datapath,
+                pipeline=self.pipeline,
+                trainer=self,
+                train_lock=self.train_lock,
+                share=self.config.viewer.make_share_url,
+            )
+            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
+
+        self._check_viewer_warnings()
+
+        self._load_checkpoint()
+
+        self.callbacks = self.pipeline.get_training_callbacks(
+            TrainingCallbackAttributes(
+                optimizers=self.optimizers,
+                grad_scaler=self.grad_scaler,
+                pipeline=self.pipeline,
+            )
+        )
+
+        # set up writers/profilers if enabled
+        writer_log_path = self.base_dir / self.config.logging.relative_log_dir
+        writer.setup_event_writer(
+            self.config.is_wandb_enabled(),
+            self.config.is_tensorboard_enabled(),
+            self.config.is_comet_enabled(),
+            log_dir=writer_log_path,
+            experiment_name=self.config.experiment_name,
+            project_name=self.config.project_name,
+        )
+        writer.setup_local_writer(
+            self.config.logging,
+            max_iter=self.config.max_num_iterations,
+            banner_messages=banner_messages,
+        )
+        writer.put_config(
+            name="config", config_dict=dataclasses.asdict(self.config), step=0
+        )
+        profiler.setup_profiler(self.config.logging, writer_log_path)
 
         # Start Status check loop
+        start = time.perf_counter()
         status = False
         CONSOLE.print(
             f"[bold green] (NerfBridge) Waiting for for image streaming to begin ...."
@@ -70,31 +137,3 @@ class ROSTrainer(Trainer):
             CONSOLE.print(
                 "[bold green] (NerfBridge) Dataloader is successfully streaming images!"
             )
-
-    def _update_viewer_state(self, step: int):
-        """
-        Updates the viewer state by rendering out scene with current pipeline
-
-        Args:
-            step: current train step
-        """
-        super()._update_viewer_state(step)
-
-        # # Clear any old cameras!
-        if self.config.draw_training_images:
-            # Draw any new training images
-            image_indices = self.dataset.updated_indices
-            for idx in image_indices:
-                if not idx in self.cameras_drawn:
-                    # Do a copy here just to make sure we aren't
-                    # changing the training data downstream.
-                    # TODO: Verify if we need to do this
-                    image = self.dataset[idx]["image"]
-                    bgr = image[..., [2, 1, 0]]
-                    camera_json = self.dataset.cameras.to_json(
-                        camera_idx=idx, image=bgr, max_size=100
-                    )
-                    self.viewer_state.viser_server.add_dataset_image(
-                        idx=f"{idx:06d}", json=camera_json
-                    )
-                    self.cameras_drawn.append(idx)

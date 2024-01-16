@@ -7,7 +7,6 @@ NerfBridge Method Configs
 
 from __future__ import annotations
 
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.models.nerfacto import NerfactoModelConfig
@@ -38,10 +37,6 @@ RosNerfacto = MethodSpecification(
                 ),
                 train_num_rays_per_batch=4096,
                 eval_num_rays_per_batch=4096,
-                camera_optimizer=CameraOptimizerConfig(
-                    mode="SO3xR3",
-                    optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
-                ),
             ),
             model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
         ),
@@ -52,6 +47,10 @@ RosNerfacto = MethodSpecification(
             },
             "fields": {
                 "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+            },
+            "camera_opt": {
+                "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
                 "scheduler": None,
             },
         },
@@ -77,10 +76,6 @@ RosDepthNerfacto = MethodSpecification(
                 ),
                 train_num_rays_per_batch=4096,
                 eval_num_rays_per_batch=4096,
-                camera_optimizer=CameraOptimizerConfig(
-                    mode="SO3xR3",
-                    optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
-                ),
             ),
             model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
         ),
@@ -91,6 +86,10 @@ RosDepthNerfacto = MethodSpecification(
             },
             "fields": {
                 "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+                "scheduler": None,
+            },
+            "camera_opt": {
+                "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
                 "scheduler": None,
             },
         },

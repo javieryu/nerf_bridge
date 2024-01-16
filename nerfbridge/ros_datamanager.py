@@ -105,13 +105,7 @@ class ROSDataManager(
         self.train_pixel_sampler = self._get_pixel_sampler(
             self.train_dataset, self.config.train_num_rays_per_batch
         )
-        self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.cameras.size, device=self.device
-        )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.cameras,
-            self.train_camera_optimizer,
-        )
+        self.train_ray_generator = RayGenerator(self.train_dataset.cameras)
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """
