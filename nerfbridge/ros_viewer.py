@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Literal, List
+from typing import Optional, Dict, Literal, Set
 
 import numpy as np
 
@@ -8,6 +8,7 @@ import viser.transforms as vtf
 
 from nerfstudio.viewer.viewer import Viewer
 from nerfstudio.data.datasets.base_dataset import InputDataset
+import pdb
 
 VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
@@ -32,7 +33,7 @@ class ROSViewer(Viewer):
         # draw the training cameras and images
         self.camera_handles: Dict[int, viser.CameraFrustumHandle] = {}
         self.original_c2w: Dict[int, np.ndarray] = {}
-        self.cameras_drawn: List[int] = []
+        self.cameras_drawn: Set[int] = set()
         self.dataset = train_dataset
         image_indices = self._pick_drawn_image_idxs(len(train_dataset))
         cameras = train_dataset.cameras.to("cpu")
@@ -49,7 +50,7 @@ class ROSViewer(Viewer):
                 image=None,
                 wxyz=R.wxyz,
                 position=c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO,
-                visible=True,
+                visible=False,
             )
 
             @camera_handle.on_click
@@ -70,10 +71,10 @@ class ROSViewer(Viewer):
         """Updates the camera poses in the scene."""
         image_indices = self.dataset.updated_indices
         for idx in image_indices:
-            if not idx in self.cameras_drawn:
+            if not idx in self.cameras_drawn and idx in self.camera_handles:
                 self.original_c2w[idx] = (
                     self.dataset.cameras.camera_to_worlds[idx].cpu().numpy()
                 )
                 self.camera_handles[idx].visible = True
-                self.cameras_drawn.append(idx)
+                self.cameras_drawn.add(idx)
         super().update_camera_poses()

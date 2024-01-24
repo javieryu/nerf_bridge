@@ -78,7 +78,7 @@ class ROSTrainer(Trainer):
                 train_lock=self.train_lock,
                 share=self.config.viewer.make_share_url,
             )
-            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
+            banner_messages = self.viewer_state.viewer_info
 
         self._check_viewer_warnings()
 
