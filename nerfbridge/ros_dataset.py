@@ -42,6 +42,7 @@ class ROSDataset(InputDataset):
         assert self.num_images > 0
         self.image_height = self.metadata["image_height"]
         self.image_width = self.metadata["image_width"]
+        self.scene_scale_factor = dataparser_outputs.dataparser_scale 
         self.device = device
 
         self.cameras = self.cameras.to(device=self.device)

@@ -222,7 +222,6 @@ class ROSDataloader(DataLoader):
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
             im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
 
-
         # COPY the image data into the data tensor
         self.dataset.image_tensor[self.current_idx] = im_tensor
 
@@ -263,8 +262,9 @@ class ROSDataloader(DataLoader):
             dtype=torch.float32
         )
 
-        # depth_resized = self.depth_transform(depth_tensor)
-        aggregate_scale = self.dataset.scale_factor * self.dataset.depth_scale_factor
+        aggregate_scale = (
+            self.dataset.scene_scale_factor * self.dataset.depth_scale_factor
+        )
 
         self.dataset.depth_tensor[self.current_idx] = (
             depth_tensor.unsqueeze(-1) * aggregate_scale
