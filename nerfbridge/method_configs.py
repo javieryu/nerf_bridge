@@ -77,7 +77,10 @@ RosDepthNerfacto = MethodSpecification(
                 train_num_rays_per_batch=4096,
                 eval_num_rays_per_batch=4096,
             ),
-            model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+            model=DepthNerfactoModelConfig(
+                eval_num_rays_per_chunk=1 << 15,
+                depth_loss_type=DepthLossType.DS_NERF,
+                ),
         ),
         optimizers={
             "proposal_networks": {
@@ -89,7 +92,7 @@ RosDepthNerfacto = MethodSpecification(
                 "scheduler": None,
             },
             "camera_opt": {
-                "optimizer": AdamOptimizerConfig(lr=1e-3, eps=1e-15),
+                "optimizer": AdamOptimizerConfig(lr=1e-4, eps=1e-15),
                 "scheduler": None,
             },
         },
