@@ -3,7 +3,7 @@ name = "nerfbridge"
 version = "0.1"
 
 dependencies = [
-	"nerfstudio==0.3.4"
+	"nerfstudio==1.0.0"
 ]
 
 [tool.setuptools.packages.find]
