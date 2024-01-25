@@ -8,7 +8,6 @@ import viser.transforms as vtf
 
 from nerfstudio.viewer.viewer import Viewer
 from nerfstudio.data.datasets.base_dataset import InputDataset
-import pdb
 
 VISER_NERFSTUDIO_SCALE_RATIO: float = 10.0
 
@@ -71,10 +70,23 @@ class ROSViewer(Viewer):
         """Updates the camera poses in the scene."""
         image_indices = self.dataset.updated_indices
         for idx in image_indices:
-            if not idx in self.cameras_drawn and idx in self.camera_handles:
+            if (not idx in self.cameras_drawn) and (idx in self.camera_handles):
                 self.original_c2w[idx] = (
                     self.dataset.cameras.camera_to_worlds[idx].cpu().numpy()
                 )
                 self.camera_handles[idx].visible = True
                 self.cameras_drawn.add(idx)
+
+                # TODO: This is a hack to render cameras because gsplat does
+                # not support camera optimization. Remove this when gsplat is fixed.
+                if not hasattr(self.pipeline.model, "camera_optimizer"):
+                    c2w = self.original_c2w[idx]
+
+                    R = vtf.SO3.from_matrix(c2w[:3, :3])  # type: ignore
+                    R = R @ vtf.SO3.from_x_radians(np.pi)
+                    self.camera_handles[idx].position = (
+                        c2w[:3, 3] * VISER_NERFSTUDIO_SCALE_RATIO
+                    )
+                    self.camera_handles[idx].wxyz = R.wxyz
+
         super().update_camera_poses()

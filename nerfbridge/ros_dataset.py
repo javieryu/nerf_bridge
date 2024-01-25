@@ -61,6 +61,7 @@ class ROSDataset(InputDataset):
                 dtype=torch.float32,
             )
         self.updated_indices = []
+        self.latest_image_idx = 0
 
     def __len__(self):
         return self.num_images
