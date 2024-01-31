@@ -52,16 +52,7 @@ class ROSDataset(InputDataset):
         )
         self.image_indices = torch.arange(self.num_images)
 
-        if "depth_topic_name" in self.metadata.keys():
-            self.depth_topic_name = self.metadata["depth_topic_name"]
-            self.depth_tensor = torch.ones(
-                self.num_images,
-                self.image_height,
-                self.image_width,
-                dtype=torch.float32,
-            )
         self.updated_indices = []
-        self.latest_image_idx = 0
 
     def __len__(self):
         return self.num_images
