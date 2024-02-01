@@ -15,4 +15,5 @@ extraPaths = ["nerfbridge"]
 [project.entry-points.'nerfstudio.method_configs']
 ros-nerfacto = 'nerfbridge.method_configs:RosNerfacto'
 ros-depth-nerfacto = 'nerfbridge.method_configs:RosDepthNerfacto'
+ros-splatfacto = 'nerfbridge.method_configs:RosSplatfacto'
 ros-depth-splatfacto = 'nerfbridge.method_configs:RosDepthSplatfacto'

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import time
 from typing import Type, List, Dict
 
 import torch
@@ -25,9 +26,9 @@ import pdb
 @dataclass
 class ROSSplatfactoModelConfig(SplatfactoModelConfig):
     _target: Type = field(default_factory=lambda: ROSSplatfactoModel)
-    depth_seed_pts: int = 5000
+    depth_seed_pts: int = 1000
     """ Number of points to use for seeding the model from depth per image. """
-    seed_from_rgbd: bool = True
+    seed_with_depth: bool = True
     """ Whether to seed the model from RGBD images. """
 
 
@@ -36,7 +37,7 @@ class ROSSplatfactoModel(SplatfactoModel):
         super().__init__(*args, **kwargs)
         self.seeded_img_idx = 0
         self.depth_seed_pts = self.config.depth_seed_pts
-        self.seed_from_rgbd = self.config.seed_from_rgbd
+        self.seed_with_depth = self.config.seed_with_depth
 
         # For some reason this is not set in the base class
         self.vis_counts = None
@@ -45,7 +46,7 @@ class ROSSplatfactoModel(SplatfactoModel):
         if not pipeline.datamanager.train_image_dataloader.listen_depth:
             return
 
-        if not self.seed_from_rgbd:
+        if not self.seed_with_depth:
             return
 
         ds_latest_idx = pipeline.datamanager.train_image_dataloader.current_idx
@@ -111,15 +112,12 @@ class ROSSplatfactoModel(SplatfactoModel):
 
         # Sample pixel indices
         # Could use a confidence map here if available
-        indices = (
-            torch.rand((self.depth_seed_pts, 2), device=self.device)
-            * torch.tensor([H, W], device=self.device)
-        ).long()
-        x = indices[:, 1].reshape((-1, 1))  # (num_seed_points, 1)
-        y = indices[:, 0].reshape((-1, 1))  # (num_seed_points, 1)
-
-        # Get RGB of the sampled pixels and convert to 0-1 range.
-        rgbs = rgb[y, x, :] / 255.0  # (num_seed_points, 3)
+        nz_row, nz_col = torch.where(depth.squeeze() > 0)
+        num_samples = min(self.depth_seed_pts, nz_row.shape[0])
+        ind_mask = torch.randperm(nz_row.shape[0])[:num_samples]
+        x = nz_col[ind_mask].to(self.device).reshape((-1, 1))
+        y = nz_row[ind_mask].to(self.device).reshape((-1, 1))
+        rgbs = rgb[y, x, :]  # (num_seed_points, 3)
         rgbs = rgbs.squeeze()
 
         # Sample depth pixels and project to 3D coordinates (camera relative).
