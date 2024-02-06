@@ -122,7 +122,7 @@ RosSplatfacto = MethodSpecification(
         pipeline=VanillaPipelineConfig(
             datamanager=ROSFullImageDataManagerConfig(
                 _target=ROSFullImageDataManager[ROSDataset],
-                dataparser=ROSDataParserConfig(aabb_scale=1.0),
+                dataparser=ROSDataParserConfig(),
             ),
             model=ROSSplatfactoModelConfig(seed_with_depth=False),
         ),

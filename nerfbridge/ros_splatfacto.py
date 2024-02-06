@@ -26,7 +26,7 @@ import pdb
 @dataclass
 class ROSSplatfactoModelConfig(SplatfactoModelConfig):
     _target: Type = field(default_factory=lambda: ROSSplatfactoModel)
-    depth_seed_pts: int = 1000
+    depth_seed_pts: int = 2000
     """ Number of points to use for seeding the model from depth per image. """
     seed_with_depth: bool = True
     """ Whether to seed the model from RGBD images. """
@@ -121,11 +121,13 @@ class ROSSplatfactoModel(SplatfactoModel):
         rgbs = rgbs.squeeze()
 
         # Sample depth pixels and project to 3D coordinates (camera relative).
-        z = depth[y, x] * -1.0  # -1 to flip the z, these are alreadys scaled
+        z = depth[y, x]
         z = z.reshape((-1, 1))  # (num_seed_points, 1)
-        x = -(x - cx) * z / fx  # -1 to flip the x (opencv to opengl)
-        y = (y - cy) * z / fy
-        xyzs = torch.stack([x, y, z], dim=-1).squeeze()  # (num_seed_points, 3)
+        x = (x - cx) * z / fx
+        y = (y - cy) * z / fy 
+
+        # Flip y and z to switch to opengl coordinate system.
+        xyzs = torch.stack([x, -y, -z], dim=-1).squeeze()  # (num_seed_points, 3)
 
         # Transform camera relative 3D coordinates to world coordinates.
         xyzs = torch.matmul(xyzs, R.T) + t  # (num_seed_points, 3)
