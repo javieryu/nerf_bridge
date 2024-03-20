@@ -44,8 +44,6 @@ class ROSDataloader(DataLoader):
 
     Args:
         dataset: Dataset to sample from.
-        publish_posearray: publish a PoseArray to a ROS topic that tracks the poses of the
-            images that have been added to the training set.
         data_update_freq: Frequency (wall clock) that images are added to the training
             data tensors. If this value is less than the frequency of the topics to which
             this dataloader subscribes (pose and images) then this subsamples the ROS data.
