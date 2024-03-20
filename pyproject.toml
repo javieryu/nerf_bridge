@@ -1,6 +1,6 @@
 [project]
 name = "nerfbridge"
-version = "0.1"
+version = "1.0"
 
 dependencies = [
 	"nerfstudio==1.0.2"
