@@ -27,7 +27,7 @@ class ROSDataParserConfig(DataParserConfig):
     """ Path to configuration JSON. """
     scene_scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    aabb_scale: float = 2.0
+    aabb_scale: float = 1.0
     """ SceneBox aabb scene side L = [-scale, scale]"""
 
 

@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-import time
 from typing import Type, List, Dict
 
 import torch
@@ -19,8 +18,6 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.cameras.cameras import Cameras
-
-import pdb
 
 
 @dataclass

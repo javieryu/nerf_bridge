@@ -33,8 +33,6 @@ class ROSDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: ROSDataManager)
     dataparser: ROSDataParserConfig = ROSDataParserConfig()
     """ Must use only the ROSDataParser here """
-    publish_training_posearray: bool = True
-    """ Whether the dataloader should publish an pose array of the training image poses. """
     data_update_freq: float = 5.0
     """ Frequency, in Hz, that images are added to the training dataset tensor. """
     num_training_images: int = 500
