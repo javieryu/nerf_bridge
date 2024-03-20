@@ -23,12 +23,12 @@ class ROSDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: ROSDataParser)
     """target class to instantiate"""
-    data: Path = Path("data/ros/nsros_config.json")
+    data: Path = Path("data/ros/nerfbridge_config.json")
     """ Path to configuration JSON. """
-    scale_factor: float = 1.0
+    scene_scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    aabb_scale: float = 2.0
-    """ SceneBox aabb scale."""
+    aabb_scale: float = 1.0
+    """ SceneBox aabb scene side L = [-scale, scale]"""
 
 
 @dataclass
@@ -40,8 +40,8 @@ class ROSDataParser(DataParser):
     def __init__(self, config: ROSDataParserConfig):
         super().__init__(config=config)
         self.data: Path = config.data
-        self.scale_factor: float = config.scale_factor
-        self.aabb = config.aabb_scale
+        self.scene_scale_factor: float = config.scene_scale_factor
+        self.aabb: float = config.aabb_scale
 
     def get_dataparser_outputs(self, split="train", num_images: int = 500):
         dataparser_outputs = self._generate_dataparser_outputs(split, num_images)
@@ -51,7 +51,7 @@ class ROSDataParser(DataParser):
         """
         This function generates a DataParserOutputs object. Typically in Nerfstudio
         this is used to populate the training and evaluation datasets, but since with
-        NSROS Bridge our aim is to stream the data then we only have to worry about
+        NerfBridge our aim is to stream the data then we only have to worry about
         loading the proper camera parameters and ROS topic names.
 
         Args:
@@ -108,6 +108,7 @@ class ROSDataParser(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        # Create a new dictionary with the correct keys
         image_filenames = []
         metadata = {
             "image_topic": meta["image_topic"],
@@ -117,12 +118,17 @@ class ROSDataParser(DataParser):
             "image_width": image_width,
         }
 
+        # Only used if depth training is enabled
+        if "depth_topic" in meta:
+            metadata["depth_topic"] = meta["depth_topic"]
+            metadata["depth_scale_factor"] = meta["depth_scale_factor"]
+
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,  # This is empty
             cameras=cameras,
             scene_box=scene_box,
             metadata=metadata,
-            dataparser_scale=self.scale_factor,
+            dataparser_scale=self.scene_scale_factor,
         )
 
         return dataparser_outputs
