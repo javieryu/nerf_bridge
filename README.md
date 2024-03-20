@@ -13,38 +13,132 @@ The core functionality of NerfBridge is fairly simple. At runtime the user provi
 ## Requirements
 - A Linux machine (tested with Ubuntu 22.04)
 	- This should also have a CUDA capable GPU, and fairly strong CPU.
-- ROS2 Humble installed on your linux machine
+- ROS2 Humble installed on your Linux machine
 - A camera that is compatible with ROS2 Humble
 - Some means by which to estimate pose of the camera (SLAM, motion capture system, etc)
 
 ## Installation  
-The first step to getting NerfBridge working is to install **just** the dependencies for Nerfstudio using the [installation guide](https://docs.nerf.studio/en/latest/quickstart/installation.html). Then once the dependencies are installed, install Nerfbridge (and Nerfstudio v0.3.3) using ``pip install -e .`` in the root of this repository.
+The first step to getting NerfBridge working is to install **just** the dependencies for Nerfstudio using the [installation guide](https://docs.nerf.studio/en/latest/quickstart/installation.html). Then once the dependencies are installed, install Nerfbridge (and Nerfstudio v1.0) using ``pip install -e .`` in the root of this repository.
 
 This will add NerfBridge to the list of available methods for on the Nerfstudio CLI. To test if NerfBridge is being registered by the CLI after installation run ``ns-train -h``, and if installation was successful then you should see ``ros-nerfacto`` in the list of available methods.
 
 These instructions assume that ROS2 is already installed on the machine that you will be running NerfBridge on, and that the appropriate ROS packages to provide a stream of color images and poses from your camera are installed and working. For details on the packages that we use to provide this data see the section below on **Our Setup**.
 
+## Installation
+Installing NerfBridge is a rather involved process because it requires using Anaconda alongside ROS2. To that end, below is a guide for installing NerfBridge on an x86\_64 Ubuntu 22.04 machine with an NVIDIA GPU.
+
+1. Install ROS2 Humble using the [installation guide](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html).
+
+2. Install Miniconda (or Anaconda) using the [installation guide](https://docs.anaconda.com/free/miniconda/miniconda-install/).
+
+3. Create a conda environment for NerfBridge. Take note of the optional procedure for completely isolating the conda environment from your machine's base python site packages. For more details see this [StackOverflow post](https://stackoverflow.com/questions/25584276/how-to-disable-site-enable-user-site-for-an-environment) and [PEP-0370](https://peps.python.org/pep-0370/). 
+
+    ```bash
+    conda create --name nerfbridge -y python=3.10
+    
+    # OPTIONAL, but recommended when using 22.04
+    conda activate nerfbridge
+    conda env config vars set PYTHONNOUSERSITE=1
+    conda deactivate
+    ```
+
+4. Activate the conda environment and install Nerfstudio dependencies.
+
+    ```bash
+    # Activate conda environment, and upgrade pip
+    conda activate nerfbridge
+    python -m pip install --upgrade pip
+
+    # PyTorch, Torchvision dependency
+    pip install torch==2.1.2+cu118 torchvision==0.16.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
+
+    # CUDA dependency (by far the easiest way to manage cuda versions)
+    conda install -c "nvidia/label/cuda-11.8.0" cuda-toolkit
+
+    # TinyCUDANN dependency (takes a while!)
+    pip install ninja git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+    # GSPLAT dependency (takes a while!)
+    # Avoids building at runtime of first splatfacto training.
+    pip install git+https://github.com/nerfstudio-project/gsplat.git
+    ```
+
+5. Clone, and install NerfBridge.
+
+    ```bash
+    # Clone the NerfBridge Repo
+    git clone https://github.com/javieryu/nerf_bridge.git
+
+    # Install NerfBridge (and Nerfstudio as a dependency)
+    # Make sure your conda env is activated!
+    cd nerf_bridge
+    pip install -e . 
+    ```
+
+Now you should be setup to run NerfBridge. In the next section is a basic tutorial on training your first NeRF using NerfBridge.
+
+## Example using a ROSBag
+This example simulates streaming data from a robot by replaying a [ROS2 bag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html), and using NerfBridge to train a Nerfacto model on that data. This example is a great way to check that your installation of NerfBridge is working correctly.
+
+These instructions are designed to be run in two different terminal sessions. They will be reffered to as terminals 1 and 2.
+
+1. [Terminal 1] Download the example `desk` rosbag using the provided download script. This script creates a folder `nerf_bridge/rosbags`, and downloads a rosbag to that directory.
+    ```bash
+    # Activate nerfbirdge conda env
+    activate nerfbridge
+
+    # Run download script
+    cd nerf_bridge
+    python scripts/download_data.py
+    ```
+
+2. [Terminal 2] Start the `desk` rosbag paused. The three important ROS topics in this rosbag are an image topic (`/camera/color/image_raw/compressed`), a depth topic (`/camera/aligned_depth_to_color/image_raw`), and a camera pose topic (`/visual_slam/tracking/odometry`). These will be the data streams that will be used to train the Nerfacto model using NerfBridge.
+
+    ```bash
+    # NOTE: for this example, Terminal 2 does not need to use the conda env.
+
+    # Play the rosbag, but start it paused.
+    cd nerf_bridge/rosbags
+    ros2 bag play desk --start-paused
+    ```
+
+3. [Terminal 1] Start NerfBridge using the Nerfstudio `ns-train` CLI. Notice, included are some parameters that must be changed from the base NerfBridge configuration to accomodate the scene. The function of these parameters is outlined in the next section. 
+
+    ```bash
+    ns-train ros-depth-nerfacto --data configs/desk.json --pipeline.datamanager.use-compressed-rgb True --pipeline.datamanager.dataparser.scene-scale-factor 0.5 --pipeline.datamanager.data-update-freq 8.0
+    ```
+
+    After some initialization a message will appear stating that `(NerfBridge) Images recieved: 0`, at this point you should open the Nerfstudio viewer in a browser tab to visualize the Nerfacto model as it trains. Training will start after completing the next step.
+
+5. [Terminal 2] Press the SPACE key to start playing the rosbag. Once the pre-training image buffer is filled (defaults to 10 images) then training should commence, and the usual Nerfstudio print messages will appear in Terminal 1. After a few seconds the Nerfstudio viewer should start to show the recieved images as camera frames, and the Nerfacto model should begin be filled out.
+
+6. After the rosbag in Terminal 2 finishes playing NerfBridge will continue training the Nerfacto model on all of the data that it has recieved, but no new data will be added. You can use CTRL+c to kill NerfBridge after you are done inspecting the Nerfacto model in the viewer.
+
 ## Running and Configuring NerfBridge
-The design and configuration of NerfBridge is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into training NeRFs online with ROS.
+The design and configuration of NerfBridge is heavily inspired by Nerfstudio, and our recommendation is to become familiar with how that repository works before jumping into your own custom implementation of NerfBridge.
 
-Nerfstudio needs three key sources of data to train a NeRF: (1) color images, (2) camera poses corresponding to the color images, and (3) a camera model matching that of the camera that is being used. NerfBridge expects that (1) and (2) are published to corresponding ROS image and pose topics, and that the names of these topics as well as (3) are provided in a JSON configuration file when the bridge is launched. A sample NerfBridge configuration JSON is provided in the root of the repository, ``nerfbridge_config_sample.json``. We recommend using the [``camera_calibration``](http://wiki.ros.org/camera_calibration) package to determine the camera model parameters. 
+Nerfstudio needs three key sources of data to train a NeRF: (1) color images, (2) camera poses corresponding to the color images, and (3) a camera model matching that of the camera that is being used. NerfBridge expects that (1) and (2) are published to corresponding ROS image and pose topics, and that the names of these topics as well as (3) are provided in a JSON configuration file at launch. A sample NerfBridge configuration JSON is provided in the root of the repository, `nerf_bridge/configs/desk.json` (this is the config used for the example above). We recommend using the [``camera_calibration``](http://wiki.ros.org/camera_calibration) package to determine the camera model parameters. 
 
-Configuring the functionality of NerfBridge is done through the Nerfstudio configuration system, and information about the various settings can be found using the command ``ns-train ros-nerfacto -h``. However, since this returns the configurable settings for both Nerfstudio and NerfBridge we provide a brief outline of the NerfBridge specific settings below.
+At present we support two Nerfstudio architectures out of the box `nerfacto` and `splatfacto`. For each of these architectures we support both RGB only training, and RGBD training. To use any of the methods simply provide the correct JSON configuration file (if using a depth supervised model then also specify the appropriate depth related configurations). The method names provided by NerfBridge are `ros-nerfacto` (Nerfacto RGB), `ros-depth-nerfacto` (Nerfacto RGBD), `ros-splatfacto` (Splatfacto RGB), and `ros-depth-splatfacto` (Splatfacto RGBD).
+
+Configuring the runtime functionality of NerfBridge is done through the Nerfstudio CLI configuration system, and information about the various settings can be found using the command ``ns-train ros-nerfacto -h``. However, since this returns the configurable settings for both Nerfstudio and NerfBridge we provide a brief outline of the NerfBridge specific settings below.
 
 | Option | Description | Default Setting |
 | :----- | :--------- | :-----: | 
-| ``msg_timeout`` | Before training starts NerfBridge will wait for a set number of posed images to be published on the topics specified in the configuration JSON. This value measures the time (in seconds) that NerfBridge will wait before timing out, and aborting training. | 60.0 (s) |
-| ``num_msgs_to_start`` | Number of messages (images and poses) that must have been successfully streamed to Nerfstudio before training will start. | 3 |
-| ``draw_training_images`` | Enables an experimental functionality for dynamically updating the camera poses that are visualized in the Nerfstudio Viewer. Right now this mostly doesn't work and will sometimes cause nothing to render in the viewer. | False |
-| ``pipeline.datamanager.data_update_freq`` | Frequency, in Hz, that images are added to the training set (allows for sub-sampling of the ROS stream). | 5 (Hz) |
-| ``pipeline.datamanager.num_training_images`` | The final size of the training dataset. | 500 |
-| ``pipeline.datamanager.slam_method`` | Used to select the correct coordinate transformations and topic types for the streamed poses with options ``[cuvslam, orbslam3]``. **Note:** Currently only tested on ROS2 with the ``cuvslam`` option while using the ``/visual_slam/tracking/odometry`` topic from [ISAAC VSLAM](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam). | ``cuvslam`` |
-| ``pipeline.datamanager.topic_sync`` | Selects between ``[exact, approx]`` which correspond to the variety of [TimeSynchronizer](http://docs.ros.org/en/lunar/api/message_filters/html/python) . | ``exact`` |
-| ``pipeline.datamanager.topic_slop`` | If an approximate time synchronization is used, then this parameters controls the allowable slop, in seconds, between the image and pose topics to consider a match. | 0.05 (s) |
+| `msg-timeout` | Before training starts NerfBridge will wait for a set number of posed images to be published on the topics specified in the configuration JSON. This value measures the time (in seconds) that NerfBridge will wait before timing out, and aborting training. | 300.0 (float, s) |
+| `num-msgs-to-start` | Number of messages (images and poses) that must have been successfully streamed to Nerfstudio before training will start. | 10 (int)|
+| `pipeline.datamanager.data-update-freq` | Frequency, in Hz, that images are added to the training set (allows for sub-sampling of the ROS stream). | 5.0 (float, Hz) |
+| `pipeline.datamanager.num-training-images` | The final size of the training dataset. | 500 (int)|
+| `pipeline.datamanager.slam-method` | Used to select the correct coordinate transformations and message types for the streamed poses with options ``[cuvslam, mocap, orbslam3]``. **Note:** Currently only tested on ROS2 with the ``cuvslam`` option while using the ``/visual_slam/tracking/odometry`` topic from [ISAAC VSLAM](https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam). | ``cuvslam`` (string)|
+| `pipeline.datamanager.topic-sync` | Selects between ``[exact, approx]`` which correspond to the variety of [TimeSynchronizer](http://docs.ros.org/en/lunar/api/message_filters/html/python) used to subscribe to topics. | ``exact`` (string)|
+| `pipeline.datamanager.topic-slop` | If an approximate time synchronization is used, then this parameters controls the allowable slop, in seconds, between the image and pose topics to consider a match. | 0.05 (float, s) |
+| `pipeline.datamanager.use-compressed-rgb` | Whether the RGB image topic is a CompressedImage topic or not. | False (bool) |
+| `pipeline.datamanager.dataparser.scene-scale-factor` | How much to scale the origins by to ensure that the scene fits within [-1, 1] box used for the Nerfacto models. | 1.0 (float) |
+| `pipeline.model.depth_seed_pts` | [ONLY for `ros-depth-splatfacto`] Configures how many gaussians to create from each depth image. | 2000 (int) |
 
 To launch NerfBridge we use the Nerfstudio CLI with the command command below.
 ```
-ns-train ros-nerfacto --data /path/to/config.json [OPTIONS]
+ns-train [METHOD-NAME] --data /path/to/config.json [OPTIONS]
 ```
 After initializing the Nerfstudio, NerfBridge will show a prompt that it is waiting to receive the appropriate number of images before training starts. When that goal has been reached another prompt will indicate the beginning of training, and then its off to the races!
 
@@ -53,40 +147,6 @@ To set the options above replace ``[OPTIONS]`` with the option name and value. F
 ns-train ros-nerfacto --data /path/to/config.json --pipeline.datamanager.data_update_freq 1.0
 ```
 will set the data update frequency to 1 Hz.
-
-## NerfBridge Tutorial on a sample ROS Bag
-The script ``scripts/download_data.py`` can be used to download one a sample ROS Bag for testing that a NerfBridge installation is working. The download script is interactive, and can be run with the following commands from the root of the NerfBridge repo:
-```
-cd scripts
-python download_data.py --path /desired/download/location
-```
-where path specifies the directory to which you would like to download the sample ROS bag. Leaving out the ``--path`` argument will download the ROS Bag to a default location inside of the NerfBridge repo. For the following tutorial use the download script to download the ``desk`` ROS bag.
-
-1. Open two terminals, and in one of them (Terminal 1) execute the following commands to prepare a ROS bag to play.
-```
-cd /path/to/desk/rosbag
-
-ros2 bag play desk --start-paused
-```
-This prepares the ROS bag for playing, but does not automatically start it (return to this terminal in Step 3).
-
-2. In the second terminal (Terminal 2), start the ROS bag with the following commands.
-```
-cd /path/to/nerfbridge/repo
-
-conda activate nerfbridge 
-# replacing nerfbridge with the appropriate name of your own conda env from the install process
-# or skip this step if you opted to install without conda
-
-ns-train ros-depth-nerfacto --data configs/desk.json --pipeline.datamanager.use-compressed-rgb True
-```
-Here the ``--data`` argument specifies the configuration data file (topic names etc), and the ``--pipeline.datamanager...`` argument specifies that NerfBridge should expect CompressedImages from the RGB image topic. You should see a message in green that ``(NerfBridge) Waiting for for image streaming to begin ....``.
-
-3. Return to Terminal 1, and press the Space bar to start the ROS bag. Shortly you should see a green message ``(NerfBridge) Dataloader is successfully streaming images!``, and then the training statistics from NerfStudio should begin printing.
-
-4. Terminal 2 should also have printed a link to the Nerfstudio viewer. Follow the link and use the viewer to render views of the NeRF while it trains! Sometimes the viewer can have some latency so if nothing renders the wait a few seconds for it to populate.
-
-If you get to Step 4, and you see a desk with a monitor and laptop appear in the NeRF then your NerfBridge installation is working correctly! Any errors along the way mean that likely your installation is broken. 
 
 ## Our Setup
 The following is a description of the setup that we at the Stanford Multi-robot Systems Lab have been using to train NeRFs online with NerfBridge from images captured by a camera mounted to a quadrotor.
@@ -137,11 +197,10 @@ In case anyone does use the NerfBridge as a starting point for any research plea
 
 
 # --------------------------- NerfBridge ---------------------
-@misc{nerfbridge,
-    author = {Yu, Javier and Schwager, Mac},
-    title = {NerfBridge},
-    url = {https://github.com/javieryu/nerf_bridge}
-    year = {2023},
-
+@article{yu2023nerfbridge,
+  title={NerfBridge: Bringing Real-time, Online Neural Radiance Field Training to Robotics},
+  author={Yu, Javier and Low, Jun En and Nagami, Keiko and Schwager, Mac},
+  journal={arXiv preprint arXiv:2305.09761},
+  year={2023}
 }
 ```
