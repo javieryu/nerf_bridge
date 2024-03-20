@@ -21,9 +21,9 @@ CONSOLE = Console(width=120)
 @dataclass
 class ROSTrainerConfig(TrainerConfig):
     _target: Type = field(default_factory=lambda: ROSTrainer)
-    msg_timeout: float = 60.0
+    msg_timeout: float = 300.0
     """ How long to wait (seconds) for sufficient images to be received before training. """
-    num_msgs_to_start: int = 3
+    num_msgs_to_start: int = 10
     """ Number of images that must be recieved before training can start. """
 
 
@@ -117,24 +117,27 @@ class ROSTrainer(Trainer):
         start = time.perf_counter()
         status = False
         CONSOLE.print(
-            f"[bold green] (NerfBridge) Waiting for for image streaming to begin ...."
+            f"[bold green] (NerfBridge) Waiting to recieve {self.num_msgs_to_start} images..."
         )
-        while time.perf_counter() - start < self.msg_timeout:
-            if self.pipeline.datamanager.train_image_dataloader.msg_status(  # pyright: ignore
-                self.num_msgs_to_start
-            ):
-                status = True
-                break
-            time.sleep(0.03)
+        with CONSOLE.status("", spinner="dots") as status:
+            while time.perf_counter() - start < self.msg_timeout:
+                dl_idx = self.pipeline.datamanager.train_image_dataloader.current_idx
+                if dl_idx >= (self.num_msgs_to_start - 1):
+                    status = True
+                    break
+                else:
+                    status_str = f"[green] (NerfBridge) Images received: {dl_idx}"
+                    status.update(status_str)
+                time.sleep(0.05)
 
         self.dataset = self.pipeline.datamanager.train_dataset  # pyright: ignore
 
         if not status:
             raise NameError(
-                "ROSTrainer setup() timed out, check that topics are being published \
-                 and that config.json correctly specifies their names."
+                "(NerfBridge) ROSTrainer setup() timed out, check that messages \
+                are being published and that config.json correctly specifies topic names."
             )
         else:
             CONSOLE.print(
-                "[bold green] (NerfBridge) Dataloader is successfully streaming images!"
+                "[bold green] (NerfBridge) Pre-train image buffer filled, starting training!"
             )

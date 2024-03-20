@@ -176,13 +176,6 @@ class ROSDataloader(DataLoader):
         )
         self.ros_thread.start()
 
-    def msg_status(self, num_to_start):
-        """
-        Check if any image-pose pairs have been successfully streamed from
-        ROS, and return True if so.
-        """
-        return self.current_idx >= (num_to_start - 1)
-
     def ts_callback(self, *args):
         now = time.perf_counter()
         if (
