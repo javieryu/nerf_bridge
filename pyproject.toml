@@ -1,9 +1,9 @@
 [project]
 name = "nerfbridge"
-version = "0.1"
+version = "1.0"
 
 dependencies = [
-	"nerfstudio==0.3.4"
+	"nerfstudio==1.0.2"
 ]
 
 [tool.setuptools.packages.find]
@@ -15,3 +15,5 @@ extraPaths = ["nerfbridge"]
 [project.entry-points.'nerfstudio.method_configs']
 ros-nerfacto = 'nerfbridge.method_configs:RosNerfacto'
 ros-depth-nerfacto = 'nerfbridge.method_configs:RosDepthNerfacto'
+ros-splatfacto = 'nerfbridge.method_configs:RosSplatfacto'
+ros-depth-splatfacto = 'nerfbridge.method_configs:RosDepthSplatfacto'

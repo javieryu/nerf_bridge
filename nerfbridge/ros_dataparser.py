@@ -25,9 +25,9 @@ class ROSDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("data/ros/nerfbridge_config.json")
     """ Path to configuration JSON. """
-    scale_factor: float = 1.0
+    scene_scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    aabb_scale: float = 2.0
+    aabb_scale: float = 1.0
     """ SceneBox aabb scene side L = [-scale, scale]"""
 
 
@@ -40,8 +40,8 @@ class ROSDataParser(DataParser):
     def __init__(self, config: ROSDataParserConfig):
         super().__init__(config=config)
         self.data: Path = config.data
-        self.scale_factor: float = config.scale_factor
-        self.aabb = config.aabb_scale
+        self.scene_scale_factor: float = config.scene_scale_factor
+        self.aabb: float = config.aabb_scale
 
     def get_dataparser_outputs(self, split="train", num_images: int = 500):
         dataparser_outputs = self._generate_dataparser_outputs(split, num_images)
@@ -128,7 +128,7 @@ class ROSDataParser(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             metadata=metadata,
-            dataparser_scale=self.scale_factor,
+            dataparser_scale=self.scene_scale_factor,
         )
 
         return dataparser_outputs

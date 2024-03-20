@@ -1,0 +1,13 @@
+{
+    "camera_model": "PINHOLE",
+    "fx": 636.162109375,
+    "fy": 646.8246459960938,
+    "cx": 635.4523315429688,
+    "cy": 370.9853820800781,
+    "W": 1280,
+    "H": 720,
+    "image_topic": "/camera/color/image_raw/compressed",
+    "pose_topic": "/visual_slam/tracking/odometry",
+    "depth_topic": "/camera/aligned_depth_to_color/image_raw",
+    "depth_scale_factor": 1e-3
+}

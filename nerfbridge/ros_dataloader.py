@@ -44,8 +44,6 @@ class ROSDataloader(DataLoader):
 
     Args:
         dataset: Dataset to sample from.
-        publish_posearray: publish a PoseArray to a ROS topic that tracks the poses of the
-            images that have been added to the training set.
         data_update_freq: Frequency (wall clock) that images are added to the training
             data tensors. If this value is less than the frequency of the topics to which
             this dataloader subscribes (pose and images) then this subsamples the ROS data.
@@ -176,13 +174,6 @@ class ROSDataloader(DataLoader):
         )
         self.ros_thread.start()
 
-    def msg_status(self, num_to_start):
-        """
-        Check if any image-pose pairs have been successfully streamed from
-        ROS, and return True if so.
-        """
-        return self.current_idx >= (num_to_start - 1)
-
     def ts_callback(self, *args):
         now = time.perf_counter()
         if (
@@ -221,7 +212,6 @@ class ROSDataloader(DataLoader):
         else:
             im_cv = self.bridge.imgmsg_to_cv2(image, image.encoding)
             im_tensor = torch.from_numpy(im_cv).to(dtype=torch.float32) / 255.0
-
 
         # COPY the image data into the data tensor
         self.dataset.image_tensor[self.current_idx] = im_tensor
@@ -263,8 +253,9 @@ class ROSDataloader(DataLoader):
             dtype=torch.float32
         )
 
-        # depth_resized = self.depth_transform(depth_tensor)
-        aggregate_scale = self.dataset.scale_factor * self.dataset.depth_scale_factor
+        aggregate_scale = (
+            self.dataset.scene_scale_factor * self.dataset.depth_scale_factor
+        )
 
         self.dataset.depth_tensor[self.current_idx] = (
             depth_tensor.unsqueeze(-1) * aggregate_scale
