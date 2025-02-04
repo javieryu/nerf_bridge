@@ -80,7 +80,7 @@ Now you should be setup to run NerfBridge. In the next section is a basic tutori
 ## Example using a ROSBag
 This example simulates streaming data from a robot by replaying a [ROS2 bag](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Recording-And-Playing-Back-Data/Recording-And-Playing-Back-Data.html), and using NerfBridge to train a Nerfacto model on that data. This example is a great way to check that your installation of NerfBridge is working correctly.
 
-These instructions are designed to be run in two different terminal sessions. They will be reffered to as terminals 1 and 2.
+These instructions are designed to be run in two different terminal sessions. They will be referred to as terminals 1 and 2.
 
 1. [Terminal 1] Download the example `desk` rosbag using the provided download script. This script creates a folder `nerf_bridge/rosbags`, and downloads a rosbag to that directory.
     ```bash
